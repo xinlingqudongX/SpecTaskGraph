@@ -72,10 +72,10 @@ export class PermissionError extends WorkflowError {
   /**
    * 创建权限被撤销错误
    */
-  static revoked(path?: string): PermissionError {
+  static revoked(message?: string): PermissionError {
     return new PermissionError(
-      '文件系统访问权限已被撤销',
-      { path, action: 'permission_check' }
+      message || '文件系统访问权限已被撤销',
+      { action: 'permission_check' }
     );
   }
 

@@ -4,10 +4,16 @@
  * 统一导出所有服务类，方便其他模块使用
  */
 
+// 文件系统相关服务
 export { FileSystemService } from './filesystem.service';
 export { FileOperationsService } from './file-operations.service';
 export { PermissionManager } from './permission-manager.service';
 
+// 数据验证相关服务
+export { ValidationService } from './validation.service';
+export { SchemaManagerService } from './schema-manager.service';
+
+// 类型导出
 export type { 
   PermissionState,
   DirectoryHandleRecord 
@@ -19,6 +25,6 @@ export type {
 } from './file-operations.service';
 
 export type {
-  PermissionChangeEvent,
-  PermissionRecord
-} from './permission-manager.service';
+  SchemaVersionInfo,
+  SchemaMigrationResult
+} from './schema-manager.service';

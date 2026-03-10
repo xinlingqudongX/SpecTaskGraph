@@ -1,0 +1,220 @@
+{
+  "type": "object",
+  "title": "WorkflowGraph",
+  "description": "工作流图谱数据结构定义",
+  "required": ["projectId", "projectName", "version", "createdAt", "updatedAt", "nodes", "edges"],
+  "properties": {
+    "projectId": {
+      "type": "string",
+      "description": "项目唯一标识符",
+      "pattern": "^[a-zA-Z0-9-_]+$",
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "projectName": {
+      "type": "string",
+      "description": "项目名称",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema版本号",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "创建时间",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "description": "更新时间",
+      "format": "date-time"
+    },
+    "nodes": {
+      "type": "array",
+      "description": "任务节点列表",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["nodeId", "type", "name", "instructions", "dependencies", "assets", "outputs", "status"],
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9-_]+$",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "type": {
+            "type": "string",
+            "enum": ["start", "task", "decision", "parallel", "end"]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string"
+          },
+          "instructions": {
+            "type": "object",
+            "required": ["guide", "logic", "criteria"],
+            "properties": {
+              "guide": {
+                "type": "string",
+                "minLength": 1
+              },
+              "logic": {
+                "type": "string",
+                "minLength": 1
+              },
+              "criteria": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "uniqueItems": true
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["assetId", "path", "role"],
+              "properties": {
+                "assetId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "role": {
+                  "type": "string",
+                  "enum": ["input", "output", "reference", "template"]
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["outputId", "name", "type"],
+              "properties": {
+                "outputId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 50
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["file", "data", "artifact"]
+                },
+                "path": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "failed", "skipped"]
+          },
+          "position": {
+            "type": "object",
+            "required": ["x", "y"],
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            }
+          },
+          "metadata": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "边连接列表",
+      "items": {
+        "type": "object",
+        "required": ["edgeId", "source", "target", "type"],
+        "properties": {
+          "edgeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "source": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9-_]+$"
+          },
+          "target": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9-_]+$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["sequence", "conditional", "parallel"]
+          },
+          "condition": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "autoSave": {
+          "type": "boolean",
+          "default": true
+        },
+        "autoSaveInterval": {
+          "type": "number",
+          "default": 500,
+          "minimum": 100
+        },
+        "enableBackup": {
+          "type": "boolean",
+          "default": true
+        },
+        "maxBackups": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

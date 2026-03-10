@@ -58,7 +58,10 @@ export class PermissionManager {
    * 私有构造函数，确保单例模式
    */
   private constructor() {
-    this.startPeriodicCheck();
+    // 在浏览器环境中启动定期检查
+    if (typeof window !== 'undefined') {
+      this.startPeriodicCheck();
+    }
   }
 
   /**
@@ -203,6 +206,10 @@ export class PermissionManager {
    * @param interval 检查间隔（毫秒），默认30秒
    */
   public startPeriodicCheck(interval: number = 30000): void {
+    if (typeof window === 'undefined') {
+      return; // 非浏览器环境不启动定期检查
+    }
+
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
     }
@@ -216,7 +223,7 @@ export class PermissionManager {
    * 停止定期权限检查
    */
   public stopPeriodicCheck(): void {
-    if (this.checkInterval) {
+    if (this.checkInterval && typeof window !== 'undefined') {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
     }
@@ -325,11 +332,17 @@ export class PermissionManager {
       async ([projectId, record]) => {
         if (record.handle) {
           try {
-            const currentState = await this.getPermissionState(projectId, record.handle);
+            // 直接查询权限状态，不更新缓存
+            const permission = await record.handle.queryPermission({ mode: 'readwrite' });
+            const currentState = permission as PermissionState;
             
-            // 如果状态发生变化，触发事件
+            // 如果状态发生变化，触发事件并更新缓存
             if (currentState !== record.state) {
               this.notifyPermissionChange(projectId, record.state, currentState);
+              this.updatePermissionCache(projectId, currentState, record.handle);
+            } else {
+              // 即使状态没变，也更新最后检查时间
+              this.updatePermissionCache(projectId, currentState, record.handle);
             }
           } catch (error) {
             console.warn(`检查项目 ${projectId} 权限状态失败:`, error);
@@ -357,8 +370,8 @@ export class PermissionManager {
  */
 export function requirePermission(projectIdParam: string = 'projectId') {
   return function (
-    target: any,
-    propertyName: string,
+    _target: any,
+    _propertyName: string,
     descriptor: PropertyDescriptor
   ) {
     const method = descriptor.value;

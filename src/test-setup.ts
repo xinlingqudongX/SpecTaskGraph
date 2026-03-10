@@ -1,82 +1,194 @@
 /**
- * 测试设置文件
+ * Jest 测试环境设置文件
  * 
- * 用于验证类型定义和基础功能是否正常工作
+ * 用于配置测试环境，包括：
+ * - 模拟浏览器 API
+ * - 设置全局变量
+ * - 配置测试工具
  */
 
-import {
-  WorkflowGraph,
-  TaskNode,
-  createEmptyWorkflowGraph,
-  createStartNode,
-  createEndNode,
-  generateProjectId,
-  updateTimestamp,
-  WorkflowGraphSchema
-} from './index';
+// 模拟浏览器环境
+(global as any).window = {
+  setInterval: global.setInterval.bind(global),
+  clearInterval: global.clearInterval.bind(global),
+  setTimeout: global.setTimeout.bind(global),
+  clearTimeout: global.clearTimeout.bind(global),
+  showDirectoryPicker: jest.fn(),
+  FileSystemDirectoryHandle: class MockFileSystemDirectoryHandle {
+    name: string;
+    kind = 'directory' as const;
 
-/**
- * 测试基础类型定义和工具函数
- */
-function testBasicFunctionality() {
-  console.log('开始测试基础功能...');
-
-  // 测试项目ID生成
-  const projectId = generateProjectId('测试项目');
-  console.log('生成的项目ID:', projectId);
-
-  // 测试创建空工作流图
-  const graph = createEmptyWorkflowGraph(projectId, '测试项目');
-  console.log('创建的空工作流图:', {
-    projectId: graph.projectId,
-    projectName: graph.projectName,
-    version: graph.version,
-    nodesCount: graph.nodes.length,
-    edgesCount: graph.edges.length
-  });
-
-  // 测试创建节点
-  const startNode = createStartNode('项目开始');
-  const endNode = createEndNode('项目结束');
-  
-  console.log('创建的起始节点:', {
-    nodeId: startNode.nodeId,
-    type: startNode.type,
-    name: startNode.name
-  });
-
-  console.log('创建的结束节点:', {
-    nodeId: endNode.nodeId,
-    type: endNode.type,
-    name: endNode.name
-  });
-
-  // 测试添加节点到工作流图
-  graph.nodes.push(startNode, endNode);
-  
-  // 测试更新时间戳
-  const updatedGraph = updateTimestamp(graph);
-  console.log('更新后的时间戳:', updatedGraph.updatedAt);
-
-  // 测试Schema验证
-  try {
-    const validationResult = WorkflowGraphSchema.safeParse(updatedGraph);
-    if (validationResult.success) {
-      console.log('✅ Schema验证通过');
-    } else {
-      console.log('❌ Schema验证失败:', validationResult.error.issues);
+    constructor(name: string = 'mock-directory') {
+      this.name = name;
     }
-  } catch (error) {
-    console.log('Schema验证出错:', error);
+
+    async queryPermission(): Promise<PermissionState> {
+      return 'granted';
+    }
+
+    async requestPermission(): Promise<PermissionState> {
+      return 'granted';
+    }
+
+    async getDirectoryHandle(): Promise<FileSystemDirectoryHandle> {
+      return new MockFileSystemDirectoryHandle() as any;
+    }
+
+    async getFileHandle(): Promise<FileSystemFileHandle> {
+      return {} as FileSystemFileHandle;
+    }
+
+    async removeEntry(): Promise<void> {
+      return;
+    }
+
+    async resolve(): Promise<string[] | null> {
+      return null;
+    }
+
+    async isSameEntry(): Promise<boolean> {
+      return false;
+    }
+
+    // 添加缺失的方法
+    async *entries(): AsyncIterableIterator<[string, FileSystemHandle]> {
+      // 空的异步迭代器
+    }
+
+    async *keys(): AsyncIterableIterator<string> {
+      // 空的异步迭代器
+    }
+
+    async *values(): AsyncIterableIterator<FileSystemHandle> {
+      // 空的异步迭代器
+    }
+
+    [Symbol.asyncIterator]() {
+      return {
+        async next() {
+          return { done: true, value: undefined };
+        }
+      };
+    }
+  }
+};
+
+class MockFileSystemDirectoryHandle {
+  name: string;
+  kind = 'directory' as const;
+
+  constructor(name: string = 'mock-directory') {
+    this.name = name;
   }
 
-  console.log('基础功能测试完成！');
-  return updatedGraph;
+  async queryPermission(): Promise<PermissionState> {
+    return 'granted';
+  }
+
+  async requestPermission(): Promise<PermissionState> {
+    return 'granted';
+  }
+
+  async getDirectoryHandle(): Promise<FileSystemDirectoryHandle> {
+    return new MockFileSystemDirectoryHandle() as any;
+  }
+
+  async getFileHandle(): Promise<FileSystemFileHandle> {
+    return {} as FileSystemFileHandle;
+  }
+
+  async removeEntry(): Promise<void> {
+    return;
+  }
+
+  async resolve(): Promise<string[] | null> {
+    return null;
+  }
+
+  async isSameEntry(): Promise<boolean> {
+    return false;
+  }
+
+  // 添加缺失的方法
+  async *entries(): AsyncIterableIterator<[string, FileSystemHandle]> {
+    // 空的异步迭代器
+  }
+
+  async *keys(): AsyncIterableIterator<string> {
+    // 空的异步迭代器
+  }
+
+  async *values(): AsyncIterableIterator<FileSystemHandle> {
+    // 空的异步迭代器
+  }
+
+  [Symbol.asyncIterator]() {
+    return {
+      async next() {
+        return { done: true, value: undefined };
+      }
+    };
+  }
 }
 
-// 如果直接运行此文件，执行测试
-if (require.main === module) {
-  testBasicFunctionality();
-}
+(global as any).FileSystemDirectoryHandle = MockFileSystemDirectoryHandle;
 
-export { testBasicFunctionality };
+// 模拟 IndexedDB
+const mockIndexedDB = {
+  open: jest.fn().mockImplementation(() => {
+    const request: any = {
+      result: {
+        transaction: jest.fn().mockReturnValue({
+          objectStore: jest.fn().mockReturnValue({
+            put: jest.fn().mockImplementation(() => ({
+              onsuccess: null,
+              onerror: null
+            })),
+            get: jest.fn().mockImplementation(() => ({
+              result: null,
+              onsuccess: null,
+              onerror: null
+            })),
+            delete: jest.fn().mockImplementation(() => ({
+              onsuccess: null,
+              onerror: null
+            })),
+            getAll: jest.fn().mockImplementation(() => ({
+              result: [],
+              onsuccess: null,
+              onerror: null
+            })),
+            createIndex: jest.fn()
+          })
+        }),
+        objectStoreNames: {
+          contains: jest.fn().mockReturnValue(false)
+        },
+        createObjectStore: jest.fn().mockReturnValue({
+          createIndex: jest.fn()
+        })
+      },
+      onsuccess: null as any,
+      onerror: null as any,
+      onupgradeneeded: null as any
+    };
+    
+    // 模拟异步成功
+    setTimeout(() => {
+      if (request.onsuccess && typeof request.onsuccess === 'function') {
+        request.onsuccess({ target: request });
+      }
+    }, 0);
+    
+    return request;
+  })
+};
+
+(global as any).indexedDB = mockIndexedDB;
+
+// 设置控制台输出级别
+console.warn = jest.fn();
+console.error = jest.fn();
+
+// 全局测试超时
+jest.setTimeout(10000);

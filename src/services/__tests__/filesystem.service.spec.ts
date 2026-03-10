@@ -62,6 +62,10 @@ const mockIDBDatabase = {
 
 // Mock window.showDirectoryPicker
 (global as any).window = {
+  setInterval: global.setInterval.bind(global),
+  clearInterval: global.clearInterval.bind(global),
+  setTimeout: global.setTimeout.bind(global),
+  clearTimeout: global.clearTimeout.bind(global),
   showDirectoryPicker: jest.fn(),
   indexedDB: {
     open: jest.fn(() => ({
@@ -78,6 +82,10 @@ describe('FileSystemService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // 重置单例实例
+    (FileSystemService as any).instance = undefined;
+    
     fileSystemService = FileSystemService.getInstance();
     
     // 设置默认的mock返回值
@@ -91,6 +99,11 @@ describe('FileSystemService', () => {
     mockWritable.close.mockResolvedValue(undefined);
     
     mockIDBTransaction.objectStore.mockReturnValue(mockIDBObjectStore);
+  });
+
+  afterEach(() => {
+    // 重置单例实例
+    (FileSystemService as any).instance = undefined;
   });
 
   describe('requestDirectoryAccess', () => {

@@ -12,6 +12,7 @@ import { PermissionError, FileIOError, ParseError } from '../errors/workflow.err
 import { FILE_PATHS, FILE_EXTENSIONS } from '../constants/workflow.constants';
 import type { WorkflowGraph } from '../types/workflow.types';
 import { FileOperationsService } from './file-operations.service';
+import { PermissionManager } from './permission-manager.service';
 
 /**
  * 权限状态类型
@@ -38,6 +39,7 @@ export class FileSystemService {
   private storeName = 'directory-handles';
   private db: IDBDatabase | null = null;
   private fileOps: FileOperationsService;
+  private permissionManager: PermissionManager;
 
   /**
    * 获取单例实例
@@ -54,6 +56,7 @@ export class FileSystemService {
    */
   private constructor() {
     this.fileOps = FileOperationsService.getInstance();
+    this.permissionManager = PermissionManager.getInstance();
     this.initializeDB();
   }
 
@@ -159,6 +162,9 @@ export class FileSystemService {
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
+
+      // 同时在 PermissionManager 中缓存权限状态
+      await this.permissionManager.getPermissionState(id, handle);
     } catch (error: any) {
       throw new FileIOError(
         `保存目录句柄失败: ${error.message}`,
@@ -215,6 +221,9 @@ export class FileSystemService {
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
       });
+
+      // 同时在 PermissionManager 中撤销权限
+      await this.permissionManager.revokePermission(id);
     } catch (error: any) {
       throw new FileIOError(
         `撤销目录访问失败: ${error.message}`,
@@ -237,6 +246,20 @@ export class FileSystemService {
       console.warn(`检查权限失败: ${error.message}`);
       return 'denied';
     }
+  }
+
+  /**
+   * 使用 PermissionManager 检查项目权限
+   * 
+   * @param projectId 项目ID
+   * @param handle 目录句柄（可选）
+   * @returns Promise<PermissionState> 权限状态
+   */
+  public async checkProjectPermission(
+    projectId: string, 
+    handle?: FileSystemDirectoryHandle
+  ): Promise<PermissionState> {
+    return await this.permissionManager.getPermissionState(projectId, handle);
   }
 
   /**
@@ -325,10 +348,7 @@ export class FileSystemService {
       }
 
       // 检查权限
-      const permission = await this.checkPermission(rootHandle);
-      if (permission !== 'granted') {
-        throw PermissionError.revoked();
-      }
+      await this.permissionManager.checkPermissionPrerequisite(projectId, rootHandle);
 
       // 获取工作流数据目录
       const workflowDir = await this.getWorkflowDataDirectory(rootHandle);
@@ -374,10 +394,7 @@ export class FileSystemService {
       }
 
       // 检查权限
-      const permission = await this.checkPermission(rootHandle);
-      if (permission !== 'granted') {
-        throw PermissionError.revoked();
-      }
+      await this.permissionManager.checkPermissionPrerequisite(projectId, rootHandle);
 
       // 获取工作流数据目录
       const workflowDir = await this.getWorkflowDataDirectory(rootHandle);
