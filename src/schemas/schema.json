@@ -1,0 +1,48 @@
+{
+  "title": "WorkflowGraph",
+  "description": "工作流图谱数据结构",
+  "type": "object",
+  "required": ["projectId", "projectName", "version", "createdAt", "updatedAt", "nodes", "edges"],
+  "properties": {
+    "projectId": {
+      "type": "string",
+      "description": "项目唯一标识符",
+      "pattern": "^[a-zA-Z0-9-_]+$",
+      "minLength": 1
+    },
+    "projectName": {
+      "type": "string",
+      "description": "项目名称",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema版本号",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "createdAt": {
+      "type": "string",
+      "description": "创建时间",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "description": "更新时间",
+      "format": "date-time"
+    },
+    "nodes": {
+      "type": "array",
+      "description": "任务节点列表",
+      "minItems": 1
+    },
+    "edges": {
+      "type": "array",
+      "description": "边连接列表"
+    },
+    "settings": {
+      "type": "object",
+      "description": "工作流配置"
+    }
+  }
+}
