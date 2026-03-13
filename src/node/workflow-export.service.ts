@@ -1,14 +1,17 @@
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository, EntityManager } from '@mikro-orm/core';
-import { NodeMetadataEntity, NodeStatus } from './entities/node-metadata.entity';
+import {
+  NodeMetadataEntity,
+  NodeStatus,
+} from './entities/node-metadata.entity';
 import { ProjectService } from '../project/project.service';
 
 // ---------------------------------------------------------------------------
 // Local interfaces
 // ---------------------------------------------------------------------------
 
-interface ExportNode {
+export interface ExportNode {
   nodeId: string;
   type: string;
   requirement: string;
@@ -19,7 +22,7 @@ interface ExportNode {
   can_execute: boolean;
 }
 
-interface WorkflowExportResponse {
+export interface WorkflowExportResponse {
   projectId: string;
   projectName: string;
   exported_at: string;
@@ -33,7 +36,10 @@ interface WorkflowExportResponse {
 // Pure helper functions (module-level)
 // ---------------------------------------------------------------------------
 
-function emptyExport(projectId: string, projectName: string): WorkflowExportResponse {
+function emptyExport(
+  projectId: string,
+  projectName: string,
+): WorkflowExportResponse {
   return {
     projectId,
     projectName,

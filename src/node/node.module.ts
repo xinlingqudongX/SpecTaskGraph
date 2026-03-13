@@ -5,6 +5,7 @@ import { NodeExecutionHistoryEntity } from './entities/node-execution-history.en
 import { NodeController } from './node.controller';
 import { WorkflowController } from './workflow.controller';
 import { NodeService } from './node.service';
+import { WorkflowExportService } from './workflow-export.service';
 import { ProjectModule } from '../project/project.module';
 
 @Module({
@@ -13,7 +14,7 @@ import { ProjectModule } from '../project/project.module';
     ProjectModule,
   ],
   controllers: [NodeController, WorkflowController],
-  providers: [NodeService],
+  providers: [NodeService, WorkflowExportService],
   exports: [NodeService],
 })
 export class NodeModule {}
