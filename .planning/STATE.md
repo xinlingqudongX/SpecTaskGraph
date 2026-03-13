@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 03-workflow-export/03-01-PLAN.md
-last_updated: "2026-03-13T09:57:49.602Z"
+stopped_at: Completed 03-workflow-export/03-02-PLAN.md
+last_updated: "2026-03-13T10:12:34.664Z"
 last_activity: 2026-03-13 — Plan 01-03 complete
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 ---
@@ -75,6 +75,7 @@ Progress: [█████████░] 17% (phase 1 of 6 done)
 | Phase 02-node-api P02 | 2 | 1 tasks | 3 files |
 | Phase 02-node-api P03 | 15 | 2 tasks | 3 files |
 | Phase 03-workflow-export P01 | 8 | 2 tasks | 2 files |
+| Phase 03-workflow-export P02 | 11 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,8 @@ Recent decisions affecting current work:
 - [Phase 03-workflow-export]: Out-of-scope dependency treated as satisfied for can_execute — locked by test case 9 in workflow-export.service.spec.ts
 - [Phase 03-workflow-export]: UnprocessableEntityException cycle response shape: { error: string, cycle: string[] } where cycle[0] === cycle[last]
 - [Phase 03-workflow-export]: Controller spec pre-writes two-argument constructor (NodeService + WorkflowExportService) — RED now, GREEN after Wave 2
+- [Phase 03-workflow-export]: UnprocessableEntityException with object body used for flat cycle error response — getResponse() returns { error, cycle } directly without message wrapper
+- [Phase 03-workflow-export]: WorkflowExportResponse and ExportNode interfaces exported from service — required to avoid TS4053 return type inference error on public controller method
 
 ### Pending Todos
 
@@ -116,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T09:57:49.599Z
-Stopped at: Completed 03-workflow-export/03-01-PLAN.md
+Last session: 2026-03-13T10:12:34.662Z
+Stopped at: Completed 03-workflow-export/03-02-PLAN.md
 Resume file: None
