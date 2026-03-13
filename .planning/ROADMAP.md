@@ -30,7 +30,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A round-trip test passes: a node converted to workflow JSON and back retains all AI fields (requirement, prompt, attributes) without corruption
   3. The auto-save path in WorkflowManagerService provably cannot overwrite status, requirement, or prompt fields — verified by test or documented contract
   4. NodeMetadataEntity schema document exists stating nodeId is PK, status is backend-only, and sync skips AI fields
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Create NodeMetadataEntity, NodeExecutionHistoryEntity, NodeModule scaffold, register entities, generate and run migration (DATA-01, DATA-02, DATA-03)
+- [ ] 01-02-PLAN.md — Update NodeStatus enum across all type files, update Instructions schema, fix logicflow-converter spread bug, add round-trip tests (DATA-04, DATA-05)
 
 ### Phase 2: Node API
 **Goal**: Backend endpoints exist for all per-node operations so frontend and AI agents have a stable contract to build against
@@ -94,7 +98,7 @@ Note: Phase 3 and Phase 4 can run in parallel after Phase 2 completes — they h
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Data Model | 0/TBD | Not started | - |
+| 1. Data Model | 0/2 | Not started | - |
 | 2. Node API | 0/TBD | Not started | - |
 | 3. Workflow Export | 0/TBD | Not started | - |
 | 4. Node Edit Panel | 0/TBD | Not started | - |
