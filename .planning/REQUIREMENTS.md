@@ -10,8 +10,8 @@
 - [x] **DATA-01**: 创建 `NodeMetadataEntity`，字段：nodeId (PK, 对应 LogicFlow node id)、requirement (TEXT)、prompt (TEXT)、attributes (JSON)、status (ENUM: pending/completed/failed/review_needed)、projectId (FK)
 - [x] **DATA-02**: 创建 `NodeExecutionHistoryEntity`，字段：id、nodeId (FK)、promptSnapshot (TEXT)、requirementSnapshot (TEXT)、result (TEXT)、executedAt、createdBy
 - [x] **DATA-03**: 生成并运行 MikroORM 迁移脚本，创建 `node_metadata` 和 `node_execution_history` 两张表
-- [ ] **DATA-04**: 确定规范：节点状态仅存储于 `NodeMetadataEntity`，不写入 `ProjectEntity.workflowJson` blob；sync 端点跳过 status/requirement/prompt 字段覆盖
-- [ ] **DATA-05**: 修复 `logicflow-converter.ts` 中的 spread 运算符问题，将 AI 字段（requirement、prompt、attributes）加入 `standardProps` 排除集，并在两个方向的转换函数中显式映射
+- [x] **DATA-04**: 确定规范：节点状态仅存储于 `NodeMetadataEntity`，不写入 `ProjectEntity.workflowJson` blob；sync 端点跳过 status/requirement/prompt 字段覆盖
+- [x] **DATA-05**: 修复 `logicflow-converter.ts` 中的 spread 运算符问题，将 AI 字段（requirement、prompt、attributes）加入 `standardProps` 排除集，并在两个方向的转换函数中显式映射
 
 ### Node API
 
@@ -79,8 +79,8 @@
 | DATA-01 | Phase 1 | Complete |
 | DATA-02 | Phase 1 | Complete |
 | DATA-03 | Phase 1 | Complete |
-| DATA-04 | Phase 1 | Pending |
-| DATA-05 | Phase 1 | Pending |
+| DATA-04 | Phase 1 | Complete |
+| DATA-05 | Phase 1 | Complete |
 | API-01 | Phase 2 | Pending |
 | API-02 | Phase 2 | Pending |
 | API-03 | Phase 2 | Pending |
