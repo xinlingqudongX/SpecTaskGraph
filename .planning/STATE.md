@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 02-node-api/02-02-PLAN.md
-last_updated: "2026-03-13T07:03:00.289Z"
+stopped_at: Completed 02-node-api/02-03-PLAN.md
+last_updated: "2026-03-13T08:53:15.998Z"
 last_activity: 2026-03-13 — Plan 01-03 complete
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 ---
@@ -73,6 +73,7 @@ Progress: [█████████░] 17% (phase 1 of 6 done)
 | Phase 01-data-model P03 | 12 min | 2 tasks | 4 files |
 | Phase 02-node-api P01 | 6 | 2 tasks | 8 files |
 | Phase 02-node-api P02 | 2 | 1 tasks | 3 files |
+| Phase 02-node-api P03 | 15 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 02-node-api]: sync.contract.spec.ts defines SYNC_UPSERT_OPTIONS inline — structural contract stays testable before NodeService implementation
 - [Phase 02-node-api]: em.persist(history)+em.persist(node)+em.flush() for updateStatus atomicity — single flush guarantees history+status written together
 - [Phase 02-node-api]: em.getReference(ProjectEntity,projectId) in sync() — no need to add ProjectEntity to forFeature(); proxy by ID suffices
+- [Phase 02-node-api]: Thin controller pattern: controllers contain no business logic — routing-only delegation to NodeService
+- [Phase 02-node-api]: WorkflowController uses @Controller('workflow') independently — separate concern for canvas sync vs node metadata
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T07:03:00.287Z
-Stopped at: Completed 02-node-api/02-02-PLAN.md
+Last session: 2026-03-13T08:53:15.996Z
+Stopped at: Completed 02-node-api/02-03-PLAN.md
 Resume file: None
