@@ -3,6 +3,7 @@ import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { NodeMetadataEntity } from './entities/node-metadata.entity';
 import { NodeExecutionHistoryEntity } from './entities/node-execution-history.entity';
 import { NodeController } from './node.controller';
+import { WorkflowController } from './workflow.controller';
 import { NodeService } from './node.service';
 import { ProjectModule } from '../project/project.module';
 
@@ -11,7 +12,7 @@ import { ProjectModule } from '../project/project.module';
     MikroOrmModule.forFeature([NodeMetadataEntity, NodeExecutionHistoryEntity]),
     ProjectModule,
   ],
-  controllers: [NodeController],
+  controllers: [NodeController, WorkflowController],
   providers: [NodeService],
   exports: [NodeService],
 })
