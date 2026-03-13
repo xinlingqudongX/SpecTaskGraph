@@ -13,7 +13,7 @@ FlowInOne already has a working canvas editor and collaboration backend. This mi
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Data Model** - Establish the authoritative schema and resolve dual-write architectural conflicts before any code is written (4/4 success criteria met)
-- [ ] **Phase 2: Node API** - Expose CRUD, status transitions, execution history, and canvas sync endpoints
+- [x] **Phase 2: Node API** - Expose CRUD, status transitions, execution history, and canvas sync endpoints (completed 2026-03-13)
 - [ ] **Phase 3: Workflow Export** - Deliver the AI IDE entry point with topological sort, can_execute flags, and cycle detection
 - [ ] **Phase 4: Node Edit Panel** - Build the frontend authoring UI where developers fill in requirements and prompts per node
 - [ ] **Phase 5: Status Visualization** - Color-code node borders by status on the canvas and keep them in sync via WebSocket
@@ -105,7 +105,7 @@ Note: Phase 3 and Phase 4 can run in parallel after Phase 2 completes — they h
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Data Model | 3/3 | Complete    | 2026-03-13 |
-| 2. Node API | 2/3 | In Progress|  |
+| 2. Node API | 2/3 | Complete    | 2026-03-13 |
 | 3. Workflow Export | 0/TBD | Not started | - |
 | 4. Node Edit Panel | 0/TBD | Not started | - |
 | 5. Status Visualization | 0/TBD | Not started | - |
