@@ -1,0 +1,379 @@
+/**
+ * LogicFlow 样式文件
+ * 定义LogicFlow组件的CSS样式和主题
+ */
+
+/* LogicFlow 基础样式 */
+.lf-graph {
+  width: 100%;
+  height: 100%;
+  background: #fafafa;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 网格样式 */
+.lf-grid {
+  opacity: 0.6;
+}
+
+/* 节点基础样式 */
+.lf-node {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lf-node:hover {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+}
+
+.lf-node.lf-node-selected {
+  filter: drop-shadow(0 0 10px rgba(102, 126, 234, 0.5));
+}
+
+/* 根节点特殊样式 */
+.lf-node-root {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* 文本节点样式 */
+.lf-node-text {
+  border-radius: 12px;
+}
+
+/* 属性节点样式 */
+.lf-node-property {
+  border-radius: 8px;
+}
+
+/* 文件节点样式 */
+.lf-node-file {
+  border-radius: 8px;
+}
+
+/* 媒体节点样式 */
+.lf-node-image,
+.lf-node-video,
+.lf-node-audio {
+  border-radius: 8px;
+}
+
+/* 边的样式 */
+.lf-edge {
+  cursor: pointer;
+}
+
+.lf-edge:hover .lf-edge-path {
+  stroke-width: 4;
+  stroke: #667eea;
+}
+
+.lf-edge.lf-edge-selected .lf-edge-path {
+  stroke: #667eea;
+  stroke-width: 4;
+}
+
+/* 箭头样式 */
+.lf-arrow {
+  fill: #5aa6e6;
+}
+
+.lf-edge:hover .lf-arrow,
+.lf-edge.lf-edge-selected .lf-arrow {
+  fill: #667eea;
+}
+
+/* 文本样式 */
+.lf-node-text-auto-wrap {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #333;
+}
+
+.lf-edge-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 11px;
+  color: #666;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 控制面板样式 */
+.lf-control {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lf-control-item {
+  width: 40px;
+  height: 40px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.lf-control-item:hover {
+  background: #f5f5f5;
+  border-color: #667eea;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.lf-control-item svg {
+  width: 20px;
+  height: 20px;
+  fill: #666;
+}
+
+.lf-control-item:hover svg {
+  fill: #667eea;
+}
+
+/* 右键菜单样式 */
+.lf-menu {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  padding: 8px 0;
+  min-width: 160px;
+  z-index: 1000;
+}
+
+.lf-menu-item {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lf-menu-item:hover {
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.lf-menu-item.lf-menu-item-danger {
+  color: #f44336;
+}
+
+.lf-menu-item.lf-menu-item-danger:hover {
+  background: rgba(244, 67, 54, 0.08);
+}
+
+.lf-menu-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 4px 0;
+}
+
+/* 选择框样式 */
+.lf-selection-select {
+  border: 2px dashed #667eea;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 4px;
+}
+
+/* 对齐线样式 */
+.lf-snapline {
+  stroke: #667eea;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.8;
+}
+
+/* 锚点样式 */
+.lf-anchor {
+  fill: #667eea;
+  stroke: white;
+  stroke-width: 2;
+  r: 4;
+  cursor: crosshair;
+}
+
+.lf-anchor:hover {
+  fill: #5a67d8;
+  r: 5;
+}
+
+/* 调整点样式 */
+.lf-resize-control {
+  fill: #667eea;
+  stroke: white;
+  stroke-width: 2;
+  cursor: nw-resize;
+}
+
+.lf-resize-control:hover {
+  fill: #5a67d8;
+}
+
+/* 动画效果 */
+@keyframes lf-node-create {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.lf-node-create-animation {
+  animation: lf-node-create 0.3s ease-out;
+}
+
+@keyframes lf-edge-create {
+  0% {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+  }
+  100% {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 0;
+  }
+}
+
+.lf-edge-create-animation {
+  animation: lf-edge-create 0.5s ease-out;
+}
+
+/* 拖拽状态样式 */
+.lf-dragging {
+  opacity: 0.8;
+  transform: scale(1.05);
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+}
+
+/* 连接状态样式 */
+.lf-connecting .lf-anchor {
+  fill: #4caf50;
+  r: 6;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 禁用状态样式 */
+.lf-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 加载状态样式 */
+.lf-loading {
+  position: relative;
+}
+
+.lf-loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .lf-control {
+    top: 10px;
+    right: 10px;
+  }
+  
+  .lf-control-item {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .lf-control-item svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .lf-menu {
+    min-width: 140px;
+  }
+  
+  .lf-menu-item {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
+/* 深色主题支持 */
+@media (prefers-color-scheme: dark) {
+  .lf-graph {
+    background: #1a1a1a;
+  }
+  
+  .lf-control-item {
+    background: #2d2d2d;
+    border-color: #404040;
+  }
+  
+  .lf-control-item:hover {
+    background: #3d3d3d;
+  }
+  
+  .lf-menu {
+    background: #2d2d2d;
+    border-color: #404040;
+  }
+  
+  .lf-menu-item {
+    color: #e0e0e0;
+  }
+  
+  .lf-node-text-auto-wrap {
+    color: #e0e0e0;
+  }
+  
+  .lf-edge-text {
+    color: #b0b0b0;
+    background: rgba(45, 45, 45, 0.9);
+  }
+}

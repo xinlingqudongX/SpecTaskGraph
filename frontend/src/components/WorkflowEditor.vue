@@ -32,8 +32,9 @@
       @save="handleUserConfigSave"
     />
 
+    <!-- 工具栏 -->
     <div class="toolbar">
-      <h3>工作流图编辑器</h3>
+      <h3>工作流图编辑器 (LogicFlow)</h3>
       <div class="tool-buttons">
         <!-- 协同功能按钮 -->
         <button
@@ -49,6 +50,8 @@
           {{ connectionText }}
         </div>
         <div class="divider"></div>
+        
+        <!-- 节点创建按钮 -->
         <button @click="addNode('text')" class="btn btn-secondary">
           <span class="icon">📝</span> 文本节点
         </button>
@@ -67,227 +70,33 @@
         <button @click="addNode('property')" class="btn btn-info">
           <span class="icon">🏷️</span> 属性节点
         </button>
+        
         <div class="divider"></div>
+        
+        <!-- 操作按钮 -->
         <button @click="saveGraph" class="btn btn-info">
           <span class="icon">💾</span> 保存
-        </button>
-        <button @click="loadGraph" class="btn btn-info">
-          <span class="icon">📂</span> 加载
         </button>
         <button @click="downloadJson" class="btn btn-success">
           <span class="icon">⬇️</span> 导出JSON
         </button>
         <button @click="clearGraph" class="btn btn-danger">
-          <span class="icon">🗑️</span>清空
+          <span class="icon">🗑️</span> 清空
         </button>
       </div>
     </div>
 
+    <!-- LogicFlow 编辑器容器 -->
     <div class="editor-container">
-      <div class="graph-container" @contextmenu.prevent>
-        <div
-          ref="container"
-          class="cytoplasm-container"
-          @click="clearSelection"
-        >
-          <!-- SVG layer for edges -->
-          <svg
-            class="edge-layer"
-            :width="containerSize.width"
-            :height="containerSize.height"
-          >
-            <defs>
-              <marker
-                id="arrow"
-                markerWidth="16"
-                markerHeight="16"
-                refX="14"
-                refY="8"
-                orient="auto"
-                markerUnits="userSpaceOnUse"
-              >
-                <path d="M1,3 L14,8 L1,13 L4,8 z" fill="#5aa6e6" />
-              </marker>
-            </defs>
-            <path
-              v-for="edge in edges"
-              :key="edge.id"
-              :d="getEdgePath(edge.source, edge.target)"
-              stroke="#5aa6e6"
-              stroke-width="3"
-              fill="none"
-              marker-end="url(#arrow)"
-            />
-          </svg>
-
-          <!-- Node overlays -->
-          <div class="node-overlay-layer">
-            <div
-              v-for="node in nodes"
-              :key="node.id"
-              class="node-overlay"
-              :id="'node_' + node.id"
-              :class="`node-${node.type}`"
-              :style="getNodeStyle(node)"
-              v-resize="(w: number, h: number) => updateNodeSize(node, w, h)"
-              @mousedown.stop="startDrag(node.id, $event)"
-              @contextmenu.prevent.stop="openContext($event, node.id)"
-            >
-              <div v-if="node.type === 'root'" class="node-card node-card-root">
-                <div class="node-root-label">
-                  {{ formatRootTitle(node.title) }}
-                </div>
-              </div>
-
-              <div v-else class="node-card">
-                <div class="node-card-header">
-                  <input
-                    class="node-title-input"
-                    v-model="node.title"
-                    placeholder="节点标题"
-                  />
-                  <div class="node-header-actions">
-                    <select class="node-status-select" v-model="node.status">
-                      <option value="pending">⏳ 待执行</option>
-                      <option value="running">🏃 执行中</option>
-                      <option value="completed">✅ 已完成</option>
-                      <option value="failed">❌ 执行失败</option>
-                    </select>
-                    <select
-                      class="node-type-select"
-                      v-model="node.type"
-                      @change="updateNodeType(node)"
-                    >
-                      <option value="text">文本(Text)</option>
-                      <option value="property">属性(Property)</option>
-                      <option value="image">图片(Image)</option>
-                      <option value="video">视频(Video)</option>
-                      <option value="audio">音频(Audio)</option>
-                      <option value="file">文件资源(File)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="node-card-body">
-                  <textarea
-                    v-if="node.type !== 'property'"
-                    class="node-textarea"
-                    v-model="node.config.textContent"
-                    maxlength="2000"
-                    placeholder="请输入提示词或描述..."
-                  ></textarea>
-                  <div v-if="node.type !== 'property'" class="node-text-count">
-                    {{ (node.config.textContent || '').length }} / 2000
-                  </div>
-
-                  <div v-if="node.type === 'file'" class="additional-input">
-                    <input
-                      type="text"
-                      class="node-file-input"
-                      v-model="node.config.resourceUrl"
-                      placeholder="关联文件路径..."
-                    />
-                  </div>
-
-                  <div
-                    v-if="node.type === 'property'"
-                    class="property-list-container"
-                  >
-                    <div class="property-list">
-                      <div
-                        v-for="(prop, index) in node.config.properties"
-                        :key="index"
-                        class="property-row"
-                      >
-                        <input
-                          v-model="prop.key"
-                          class="prop-input prop-key"
-                          placeholder="属性名"
-                        />
-                        <input
-                          v-model="prop.value"
-                          class="prop-input prop-val"
-                          placeholder="属性值"
-                        />
-                        <button
-                          class="remove-prop-btn"
-                          @click="removeProperty(node, index)"
-                        >
-                          ✖
-                        </button>
-                      </div>
-                    </div>
-                    <button class="add-prop-btn" @click="addProperty(node)">
-                      + 添加属性
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="contextMenu.visible"
-          class="context-menu"
-          :style="{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }"
-        >
-          <div class="context-menu-group">添加子节点</div>
-          <button class="context-menu-item" @click="handleContextAdd('text')">
-            增加文本节点
-          </button>
-          <button
-            class="context-menu-item"
-            @click="handleContextAdd('property')"
-          >
-            增加属性节点
-          </button>
-          <button class="context-menu-item" @click="handleContextAdd('file')">
-            增加文件节点
-          </button>
-          <button class="context-menu-item" @click="handleContextAdd('image')">
-            增加图片节点
-          </button>
-          <button class="context-menu-item" @click="handleContextAdd('video')">
-            增加视频节点
-          </button>
-          <button class="context-menu-item" @click="handleContextAdd('audio')">
-            增加音频节点
-          </button>
-
-          <div class="context-menu-divider"></div>
-          <div class="context-menu-group">连线操作</div>
-          <button class="context-menu-item" @click="setConnectionSource">
-            设为连线起点
-          </button>
-          <button
-            v-if="
-              connectingSourceId && connectingSourceId !== contextMenu.nodeId
-            "
-            class="context-menu-item highlight-item"
-            @click="connectFromSource"
-          >
-            🔌 连接至此节点
-          </button>
-          <button class="context-menu-item" @click="removeIncomingEdges">
-            删除所有输入连线
-          </button>
-          <button class="context-menu-item" @click="removeOutgoingEdges">
-            删除所有输出连线
-          </button>
-
-          <div class="context-menu-divider"></div>
-          <button class="context-menu-item danger" @click="handleContextDelete">
-            删除当前节点
-          </button>
-        </div>
-      </div>
+      <div ref="container" class="logicflow-container"></div>
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
 import { ref, reactive, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue';
+import LogicFlow, { RectNode, RectNodeModel } from '@logicflow/core';
+import '@logicflow/core/dist/index.css'; // 导入LogicFlow核心样式
+import '@logicflow/extension/dist/index.css'; // 导入LogicFlow扩展样式
 import CollaborativeCursors from './CollaborativeCursors.vue';
 import OnlineUsersList from './OnlineUsersList.vue';
 import UserConfigDialog from './UserConfigDialog.vue';
@@ -297,43 +106,31 @@ import type { User, CollaborationOperation } from '../services/collaboration.ser
 import type { UserConfig } from '../services/user-manager.service';
 import type { OperationConflict } from '../services/operation-sync.service';
 import { getWebSocketUrl } from '../config/websocket.config';
+import { createLogicFlowInstance } from '../config/logicflow.config';
+import { logicFlowConverter } from '../utils/logicflow-converter';
+import { workflowLogger, logicflowLogger } from '../utils/logger';
+import type { 
+  NodeType, 
+  NodeStatus, 
+  ExtendedNodeConfig, 
+  ExtendedEdgeConfig,
+  LogicFlowGraphData,
+  WorkflowData 
+} from '../types/logicflow.types';
 
-type NodeType =
-  | 'root'
-  | 'text'
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'file'
-  | 'property';
-type NodeStatus = 'pending' | 'running' | 'completed' | 'failed';
-
-interface NodeConfig {
-  typeKey?: NodeType;
-  textContent?: string;
-  resourceName?: string;
-  resourceUrl?: string;
-  properties?: { key: string; value: string }[];
-}
-
-interface NodeItem {
-  id: string;
-  title: string;
-  type: NodeType;
-  status: NodeStatus;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  zIndex: number;
-  config: NodeConfig;
-}
-
-interface EdgeItem {
-  id: string;
-  source: string;
-  target: string;
-}
+// 确保LogicFlow正确导入
+workflowLogger.group('模块导入检查');
+workflowLogger.info('LogicFlow导入状态', {
+  LogicFlow: typeof LogicFlow,
+  LogicFlowConstructor: LogicFlow,
+  RectNode: typeof RectNode,
+  RectNodeModel: typeof RectNodeModel,
+  createLogicFlowInstance: typeof createLogicFlowInstance,
+  logicFlowConverter: typeof logicFlowConverter,
+  hasLogicFlowPrototype: LogicFlow.prototype ? '存在' : '不存在',
+  hasRectNodePrototype: RectNode.prototype ? '存在' : '不存在'
+});
+workflowLogger.groupEnd();
 
 const props = defineProps<{
   workflowData?: any | null;
@@ -346,10 +143,9 @@ const emit = defineEmits<{
   (e: 'save', payload: { elements: unknown[]; timestamp: string }): void;
 }>();
 
+// LogicFlow 实例和容器
 const container = ref<HTMLDivElement | null>(null);
-const containerSize = ref({ width: 1200, height: 800 });
-const nodes = ref<NodeItem[]>([]);
-const edges = ref<EdgeItem[]>([]);
+const logicFlowInstance = ref<LogicFlow | null>(null);
 
 // 协同功能相关
 const collaborationManager = ref<CollaborationManagerService | null>(null);
@@ -366,24 +162,13 @@ const showUserConfig = ref(false);
 const showAllCursors = ref(true);
 const cursorsRef = ref<InstanceType<typeof CollaborativeCursors> | null>(null);
 
+// 生成唯一ID的工具函数
 const generateUniqueId = (prefix: string) => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return `${prefix}_${crypto.randomUUID()}`;
   }
   return `${prefix}_${Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
 };
-
-const dragging = reactive({ 
-  id: '', 
-  offsetX: 0, 
-  offsetY: 0, 
-  active: false,
-  lastBroadcastTime: 0,
-  broadcastThrottle: 100, // 100ms节流，避免过于频繁的广播
-});
-const contextMenu = reactive({ visible: false, x: 0, y: 0, nodeId: '' });
-
-const connectingSourceId = ref<string>('');
 
 // 协同功能计算属性
 const currentUserForList = computed(() => {
@@ -429,583 +214,772 @@ const connectionText = computed(() => {
       return '未知状态';
   }
 });
-
-const vResize = {
-  mounted(el: HTMLElement, binding: any) {
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      const target = entry?.target as HTMLElement;
-      binding.value(target.offsetWidth, target.offsetHeight);
-    });
-    observer.observe(el);
-    (el as any)._resizeObserver = observer;
-  },
-  unmounted(el: HTMLElement) {
-    if ((el as any)._resizeObserver) {
-      (el as any)._resizeObserver.disconnect();
+// 组件挂载时初始化
+onMounted(async () => {
+  workflowLogger.group('组件挂载初始化');
+  workflowLogger.info('WorkflowEditor组件已挂载', {
+    props: {
+      workflowData: props.workflowData ? '存在' : '不存在',
+      projectName: props.projectName,
+      collaborationEnabled: props.collaborationEnabled,
+      projectId: props.projectId
     }
-  },
-};
-
-const updateNodeSize = (node: NodeItem, w: number, h: number) => {
-  if (Math.abs(node.width - w) > 2 || Math.abs(node.height - h) > 2) {
-    node.width = w;
-    node.height = h;
-  }
-};
-
-const getNodeSize = (type: NodeType) => {
-  switch (type) {
-    case 'root':
-      return { width: 180, height: 70 };
-    case 'property':
-      return { width: 440, height: 260 };
-    case 'text':
-    case 'file':
-    case 'image':
-    case 'video':
-    case 'audio':
-      return { width: 420, height: 260 };
-    default:
-      return { width: 420, height: 260 };
-  }
-};
-
-const formatRootTitle = (title: string) => (title || '项目').toUpperCase();
-
-const ensureRoot = () => {
-  if (nodes.value.find((n) => n.type === 'root')) return;
-  const size = getNodeSize('root');
-  nodes.value.push({
-    id: 'node_root',
-    title: props.projectName || '项目',
-    type: 'root',
-    status: 'pending',
-    x: 200,
-    y: 120,
-    width: size.width,
-    height: size.height,
-    zIndex: 10,
-    config: { typeKey: 'root' },
   });
-};
-
-const updateContainerSize = () => {
-  if (!container.value) return;
-  const r = container.value.getBoundingClientRect();
-  containerSize.value.width = Math.max(r.width, 1);
-  containerSize.value.height = Math.max(r.height, 1);
-};
-
-onMounted(() => {
-  updateContainerSize();
-  window.addEventListener('resize', updateContainerSize);
-  ensureRoot();
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
-  document.addEventListener('click', () => {
-    contextMenu.visible = false;
+  
+  workflowLogger.time('DOM渲染等待');
+  // 等待DOM完全渲染
+  await nextTick();
+  workflowLogger.timeEnd('DOM渲染等待');
+  workflowLogger.info('DOM渲染完成，开始检查容器元素');
+  
+  // 检查容器元素状态
+  workflowLogger.debug('容器元素检查', {
+    containerRef: container.value ? '存在' : '不存在',
+    containerElement: container.value,
+    containerTagName: container.value?.tagName,
+    containerClientWidth: container.value?.clientWidth,
+    containerClientHeight: container.value?.clientHeight,
+    containerParent: container.value?.parentElement?.tagName
   });
-
+  
+  // 再次确保容器元素存在
+  if (!container.value) {
+    workflowLogger.warn('挂载后容器元素仍然不存在，等待延迟重试...');
+    setTimeout(async () => {
+      await nextTick();
+      workflowLogger.debug('延迟重试后容器检查', {
+        containerExists: !!container.value,
+        containerElement: container.value
+      });
+      
+      if (container.value) {
+        workflowLogger.success('延迟后找到容器元素，开始初始化LogicFlow');
+        initializeLogicFlow();
+      } else {
+        workflowLogger.error('延迟后仍然找不到容器元素，LogicFlow初始化失败');
+      }
+    }, 100);
+  } else {
+    workflowLogger.success('容器元素已就绪，立即初始化LogicFlow');
+    initializeLogicFlow();
+  }
+  
   // 初始化协同功能
   if (props.collaborationEnabled && props.projectId) {
+    workflowLogger.info('开始初始化协同功能', {
+      projectId: props.projectId,
+      collaborationEnabled: props.collaborationEnabled
+    });
     initializeCollaboration();
+  } else {
+    workflowLogger.info('跳过协同功能初始化', {
+      collaborationEnabled: props.collaborationEnabled,
+      hasProjectId: !!props.projectId
+    });
   }
+  
+  workflowLogger.groupEnd();
 });
 
+// 组件卸载前清理
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', updateContainerSize);
-  document.removeEventListener('mousemove', onMouseMove);
-  document.removeEventListener('mouseup', onMouseUp);
-
+  if (logicFlowInstance.value) {
+    logicFlowInstance.value.destroy();
+  }
+  
   // 清理协同功能
   if (collaborationManager.value) {
     collaborationManager.value.destroy();
   }
 });
 
+// 监听工作流数据变化
 watch(
   () => props.workflowData,
-  (value) => {
-    if (!value || !Array.isArray(value.elements)) return;
-    nodes.value = [];
-    edges.value = [];
-    value.elements.forEach((el: any) => {
-      if (el.group === 'nodes') {
-        const pos = el.position || { x: 100, y: 100 };
-        const type: NodeType = el.data?.type || 'text';
-        const size = getNodeSize(type);
-        nodes.value.push({
-          id: el.data?.id || generateUniqueId('node'),
-          title: el.data?.title || el.data?.name || '节点',
-          type,
-          status: el.data?.status || 'pending',
-          x: pos.x,
-          y: pos.y,
-          width: size.width,
-          height: size.height,
-          zIndex: 10,
-          config: el.data?.config || {},
-        });
-      }
-      if (el.group === 'edges') {
-        edges.value.push({
-          id: el.data?.id || generateUniqueId('edge'),
-          source: el.data?.source,
-          target: el.data?.target,
-        });
-      }
-    });
-    ensureRoot();
+  (newData) => {
+    if (newData && logicFlowInstance.value) {
+      loadWorkflowData(newData);
+    }
   },
-  { immediate: true },
+  { immediate: true }
 );
 
-const getNodeById = (id: string) => nodes.value.find((n) => n.id === id);
-
-const getEdgePath = (sourceId: string, targetId: string) => {
-  const sourceNode = getNodeById(sourceId);
-  const targetNode = getNodeById(targetId);
-  if (!sourceNode || !targetNode) return '';
-
-  const x1 = sourceNode.x;
-  const y1 = sourceNode.y;
-  const x2 = targetNode.x;
-  const y2 = targetNode.y;
-
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist === 0) return '';
-
-  const tw = targetNode.width / 2 + 8; // padding for arrow marker visibility
-  const th = targetNode.height / 2 + 8;
-  const txScale = dx !== 0 ? Math.abs(tw / dx) : Infinity;
-  const tyScale = dy !== 0 ? Math.abs(th / dy) : Infinity;
-  const tScale = Math.min(txScale, tyScale, 1);
-
-  const tx = x2 - dx * tScale;
-  const ty = y2 - dy * tScale;
-
-  const sw = sourceNode.width / 2;
-  const sh = sourceNode.height / 2;
-  const sxScale = dx !== 0 ? Math.abs(sw / dx) : Infinity;
-  const syScale = dy !== 0 ? Math.abs(sh / dy) : Infinity;
-  const sScale = Math.min(sxScale, syScale, 1);
-
-  const sx = x1 + dx * sScale;
-  const sy = y1 + dy * sScale;
-
-  return `M ${sx},${sy} L ${tx},${ty}`;
-};
-
-const getNodeStyle = (node: NodeItem) => {
-  const isProp = node.type === 'property';
-  const isRoot = node.type === 'root';
-  return {
-    left: `${node.x}px`,
-    top: `${node.y}px`,
-    transform: 'translate(-50%, -50%)',
-    width: isProp ? 'fit-content' : isRoot ? '180px' : '420px',
-    height: isProp ? 'fit-content' : isRoot ? '70px' : '260px',
-    minWidth: isProp ? '440px' : 'auto',
-    minHeight: isProp ? '260px' : 'auto',
-    zIndex: node.zIndex || 10,
-  };
-};
-
-const startDrag = (id: string, e: MouseEvent) => {
-  const target = e.target as HTMLElement;
-  const tagName = target.tagName;
-
-  if (
-    tagName === 'TEXTAREA' ||
-    tagName === 'SELECT' ||
-    tagName === 'INPUT' ||
-    tagName === 'BUTTON' ||
-    target.closest('.prop-input')
-  ) {
-    return;
-  }
-
-  e.preventDefault();
-
-  const n = getNodeById(id);
-  if (!n || !container.value) return;
-  const rect = container.value.getBoundingClientRect();
-  dragging.id = id;
-  dragging.active = true;
-  dragging.offsetX = e.clientX - rect.left - n.x;
-  dragging.offsetY = e.clientY - rect.top - n.y;
-  dragging.lastBroadcastTime = 0;
-
-  // Bring to front
-  nodes.value.forEach((node) => {
-    node.zIndex = node.id === id ? 20 : 10;
-  });
-
-  // 广播拖拽开始
-  broadcastOperation({
-    type: 'node-update',
-    nodeId: id,
-    data: {
-      position: { x: n.x, y: n.y },
-      isDragging: true,
-      dragStart: true, // 标记为拖拽开始
-    },
-  });
-};
-
-const onMouseMove = (e: MouseEvent) => {
-  if (!dragging.active) return;
-  const n = getNodeById(dragging.id);
-  if (!n || !container.value) return;
+/**
+ * 初始化LogicFlow实例
+ */
+function initializeLogicFlow() {
+  logicflowLogger.group('LogicFlow实例初始化');
+  logicflowLogger.time('LogicFlow初始化总耗时');
   
-  const rect = container.value.getBoundingClientRect();
-  const newX = e.clientX - rect.left - dragging.offsetX;
-  const newY = e.clientY - rect.top - dragging.offsetY;
+  logicflowLogger.info('开始初始化LogicFlow实例');
   
-  // 更新节点位置
-  n.x = newX;
-  n.y = newY;
-  
-  // 节流广播拖拽中的位置更新
-  const now = Date.now();
-  if (now - dragging.lastBroadcastTime > dragging.broadcastThrottle) {
-    broadcastOperation({
-      type: 'node-update',
-      nodeId: dragging.id,
-      data: {
-        position: { x: newX, y: newY },
-        isDragging: true, // 标记为拖拽中的更新
-      },
+  // 容器元素检查
+  if (!container.value) {
+    logicflowLogger.error('LogicFlow容器未找到', {
+      containerRef: container.value,
+      containerExists: !!container.value
     });
-    dragging.lastBroadcastTime = now;
-  }
-};
-
-const onMouseUp = () => {
-  if (dragging.active && dragging.id) {
-    const node = getNodeById(dragging.id);
-    if (node) {
-      // 广播节点位置更新（拖拽结束）
-      broadcastOperation({
-        type: 'node-update',
-        nodeId: dragging.id,
-        data: {
-          position: { x: node.x, y: node.y },
-          isDragging: false, // 标记为拖拽结束
-        },
-      });
-    }
-  }
-  
-  dragging.active = false;
-  dragging.id = '';
-  dragging.lastBroadcastTime = 0;
-};
-
-const addNode = (
-  type: NodeType,
-  position?: { x: number; y: number },
-  parentId?: string,
-) => {
-  const id = generateUniqueId('node');
-  const size = getNodeSize(type);
-  const pos = position ?? {
-    x: 150 + Math.random() * 300,
-    y: 150 + Math.random() * 300,
-  };
-  
-  const newNode: NodeItem = {
-    id,
-    title: `${type.toUpperCase()} ${id}`,
-    type,
-    status: 'pending',
-    x: pos.x,
-    y: pos.y,
-    width: size.width,
-    height: size.height,
-    zIndex: 10,
-    config: getDefaultConfig(type) as any,
-  };
-  
-  nodes.value.push(newNode);
-  
-  if (parentId) {
-    createEdge(parentId, id);
-  }
-
-  // 广播节点创建操作
-  broadcastOperation({
-    type: 'node-create',
-    nodeId: id,
-    data: {
-      title: newNode.title,
-      type: newNode.type,
-      status: newNode.status,
-      position: { x: pos.x, y: pos.y },
-      config: newNode.config,
-      parentId,
-    },
-  });
-};
-
-const addProperty = (node: NodeItem) => {
-  if (!node.config.properties) {
-    node.config.properties = [];
-  }
-  node.config.properties.push({ key: '', value: '' });
-};
-
-const removeProperty = (node: NodeItem, index: number) => {
-  if (node.config.properties) {
-    node.config.properties.splice(index, 1);
-  }
-};
-
-const createEdge = (source: string, target: string) => {
-  if (edges.value.find((e) => e.source === source && e.target === target))
-    return;
-  
-  const edgeId = generateUniqueId('edge');
-  const newEdge = { id: edgeId, source, target };
-  edges.value.push(newEdge);
-  
-  // 广播边创建操作
-  broadcastOperation({
-    type: 'edge-create',
-    edgeId: edgeId,
-    data: { source, target },
-  });
-};
-
-const getDefaultConfig = (type: NodeType) => {
-  switch (type) {
-    case 'text':
-      return { typeKey: 'text', textContent: '' };
-    case 'property':
-      return {
-        typeKey: 'property',
-        textContent: '',
-        properties: [{ key: '', value: '' }],
-      };
-    case 'image':
-      return { typeKey: 'image', resourceName: '', resourceUrl: '' };
-    case 'video':
-      return { typeKey: 'video', resourceName: '', resourceUrl: '' };
-    case 'audio':
-      return { typeKey: 'audio', resourceName: '', resourceUrl: '' };
-    default:
-      return { typeKey: type };
-  }
-};
-
-const handleContextAdd = (type: NodeType) => {
-  if (!contextMenu.nodeId) return;
-  const parent = contextMenu.nodeId;
-  addNode(type, undefined, parent);
-  contextMenu.visible = false;
-};
-
-const handleContextDelete = () => {
-  if (!contextMenu.nodeId) return;
-  const id = contextMenu.nodeId;
-  const n = getNodeById(id);
-  if (!n) return;
-  if (n.type === 'root') {
-    alert('根节点不可删除');
-    contextMenu.visible = false;
+    logicflowLogger.groupEnd();
     return;
   }
-  
-  // 删除节点和相关连接
-  nodes.value = nodes.value.filter((i) => i.id !== id);
-  edges.value = edges.value.filter((e) => e.source !== id && e.target !== id);
-  
-  // 广播删除操作
-  broadcastOperation({
-    type: 'node-delete',
-    nodeId: id,
-    data: {},
-  });
-  
-  contextMenu.visible = false;
-};
 
-const setConnectionSource = () => {
-  if (!contextMenu.nodeId) return;
-  connectingSourceId.value = contextMenu.nodeId;
-  contextMenu.visible = false;
-};
-
-const connectFromSource = () => {
-  if (!connectingSourceId.value || !contextMenu.nodeId) return;
-  createEdge(connectingSourceId.value, contextMenu.nodeId);
-  connectingSourceId.value = '';
-  contextMenu.visible = false;
-};
-
-const removeIncomingEdges = () => {
-  if (!contextMenu.nodeId) return;
-  edges.value = edges.value.filter((e) => e.target !== contextMenu.nodeId);
-  contextMenu.visible = false;
-};
-
-const removeOutgoingEdges = () => {
-  if (!contextMenu.nodeId) return;
-  edges.value = edges.value.filter((e) => e.source !== contextMenu.nodeId);
-  contextMenu.visible = false;
-};
-
-const openContext = (e: MouseEvent, nodeId: string) => {
-  if (container.value && container.value.parentElement) {
-    const rect = container.value.parentElement.getBoundingClientRect();
-    contextMenu.x = e.clientX - rect.left;
-    contextMenu.y = e.clientY - rect.top;
-  } else {
-    contextMenu.x = e.clientX;
-    contextMenu.y = e.clientY;
-  }
-  contextMenu.visible = true;
-  contextMenu.nodeId = nodeId;
-};
-
-const clearSelection = () => {
-  contextMenu.visible = false;
-};
-
-const saveGraph = () => {
-  const elements: any[] = [];
-  nodes.value.forEach((n) =>
-    elements.push({
-      group: 'nodes',
-      data: {
-        id: n.id,
-        name: n.title,
-        title: n.title,
-        type: n.type,
-        status: n.status,
-        config: n.config,
-      },
-      position: { x: n.x, y: n.y },
-    }),
-  );
-  edges.value.forEach((e) =>
-    elements.push({
-      group: 'edges',
-      data: { id: e.id, source: e.source, target: e.target },
-    }),
-  );
-  emit('save', { elements, timestamp: new Date().toISOString() });
-};
-
-const updateNodeType = (node: NodeItem) => {
-  const size = getNodeSize(node.type);
-  node.width = size.width;
-  node.height = size.height;
-  node.config = getDefaultConfig(node.type) as any;
-};
-
-const loadGraph = () => {
-  // watcher will handle reloading from props.workflowData
-};
-
-const downloadJson = () => {
-  if (nodes.value.length === 0) return;
-
-  // Build a map for easy lookup
-  const nodeMap = new Map();
-  nodes.value.forEach((n) => nodeMap.set(n.id, n));
-
-  // Determine root nodes (nodes with no incoming edges or strictly type 'root')
-  const rootNode = nodes.value.find((n) => n.type === 'root');
-
-  const structNodes = nodes.value.map((n) => {
-    const incomingEdges = edges.value.filter((e) => e.target === n.id);
-    const parentId = incomingEdges.length > 0 ? incomingEdges[0]?.source || null : null;
-    const outgoing = edges.value
-      .filter((e) => e.source === n.id)
-      .map((e) => e.target);
-    const contentText = n.config.textContent || '';
-    const fileUrl = n.config.resourceUrl || '';
-
-    return {
-      id: n.id,
-      title: n.title,
-      type: n.type,
-      status: n.status,
-      description: contentText,
-      fileResource: fileUrl,
-      properties: n.config.properties || [],
-      dependsOn: parentId,
-      nextNodes: outgoing,
-      metadata: {
-        x: n.x,
-        y: n.y,
-        width: n.width,
-        height: n.height,
-      },
-    };
+  logicflowLogger.success('容器元素检查通过', {
+    containerElement: container.value,
+    tagName: container.value.tagName,
+    className: container.value.className,
+    clientWidth: container.value.clientWidth,
+    clientHeight: container.value.clientHeight,
+    offsetWidth: container.value.offsetWidth,
+    offsetHeight: container.value.offsetHeight,
+    parentElement: container.value.parentElement?.tagName
   });
 
-  // Extract separate workflow pipelines (paths originating from root)
-  const pipelines: any[] = [];
-  if (rootNode) {
-    const rootEdges = edges.value.filter((e) => e.source === rootNode.id);
-    rootEdges.forEach((e) => {
-      // Each outgoing edge from root is a top-level feature pipeline
-      const targetNode = nodeMap.get(e.target);
-      if (targetNode) {
-        pipelines.push({
-          pipelineStartId: e.target,
-          featureName: targetNode.title,
-          description: targetNode.config?.textContent || '',
+  try {
+    // 创建LogicFlow实例
+    logicflowLogger.info('正在创建LogicFlow实例...');
+    logicflowLogger.time('LogicFlow实例创建');
+    
+    logicFlowInstance.value = createLogicFlowInstance(container.value);
+    
+    logicflowLogger.timeEnd('LogicFlow实例创建');
+    logicflowLogger.success('LogicFlow实例创建成功', {
+      instance: logicFlowInstance.value,
+      instanceType: typeof logicFlowInstance.value,
+      instanceMethods: logicFlowInstance.value ? Object.getOwnPropertyNames(Object.getPrototypeOf(logicFlowInstance.value)) : '无',
+      hasAddNode: typeof logicFlowInstance.value?.addNode,
+      hasGetGraphData: typeof logicFlowInstance.value?.getGraphData,
+      hasRender: typeof logicFlowInstance.value?.render,
+      hasRegister: typeof logicFlowInstance.value?.register
+    });
+    
+    // 注册自定义节点类型（必须在addNode之前完成）
+    logicflowLogger.info('正在注册自定义节点类型...');
+    logicflowLogger.time('自定义节点注册');
+    registerCustomNodes();
+    logicflowLogger.timeEnd('自定义节点注册');
+    
+    // 验证节点是否注册成功
+    if (logicFlowInstance.value) {
+      const graphModel = (logicFlowInstance.value as any).graphModel;
+      if (graphModel && graphModel.modelMap) {
+        logicflowLogger.debug('已注册的节点类型', {
+          registeredTypes: Object.keys(graphModel.modelMap),
+          modelMapSize: Object.keys(graphModel.modelMap).length
         });
       }
-    });
+    }
+    
+    // 设置事件监听器
+    logicflowLogger.info('正在设置事件监听器...');
+    logicflowLogger.time('事件监听器设置');
+    setupLogicFlowEvents();
+    logicflowLogger.timeEnd('事件监听器设置');
+    
+    // 确保有根节点（在节点注册完成后）
+    logicflowLogger.info('正在确保根节点存在...');
+    logicflowLogger.time('根节点创建');
+    ensureRootNode();
+    logicflowLogger.timeEnd('根节点创建');
+    
+    logicflowLogger.timeEnd('LogicFlow初始化总耗时');
+    logicflowLogger.success('LogicFlow初始化完成');
+    logicflowLogger.groupEnd();
+    
+  } catch (error) {
+    logicflowLogger.timeEnd('LogicFlow初始化总耗时');
+    logicflowLogger.error('LogicFlow初始化失败', error);
+    logicflowLogger.groupEnd();
+  }
+}
+
+/**
+ * 注册自定义节点类型
+ */
+function registerCustomNodes() {
+  if (!logicFlowInstance.value) {
+    logicflowLogger.error('无法注册自定义节点：LogicFlow实例不存在');
+    return;
   }
 
-  const exportData = {
-    $schema: 'http://json-schema.org/draft-07/schema#',
-    project: {
-      name: props.projectName || 'Workflow Project',
-      exportTime: new Date().toISOString(),
-      totalNodes: nodes.value.length,
-      totalEdges: edges.value.length,
-      description: '工作流自动化与项目拆解图谱',
-    },
-    pipelines: pipelines,
-    nodes: structNodes,
-  };
+  logicflowLogger.group('自定义节点注册');
+  const lf = logicFlowInstance.value;
 
-  const dataStr = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([dataStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+  try {
+    logicflowLogger.info('开始注册节点类型', {
+      logicFlowInstance: !!lf,
+      RectNode: typeof RectNode,
+      RectNodeModel: typeof RectNodeModel,
+      registerMethod: typeof lf.register
+    });
 
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${props.projectName || 'workflow'}_schema.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
+    // 定义所有自定义节点类（包含View和Model）
+    const nodeConfigs: Array<{ type: string; view: any; model: any }> = [];
 
-const clearGraph = () => {
-  if (!confirm('确定要清空所有节点吗？')) return;
+    // 1. 根节点
+    class RootNodeModel extends RectNodeModel {}
+    class RootNodeView extends RectNode {}
+    
+    nodeConfigs.push({ 
+      type: 'RootNode', 
+      view: RootNodeView,
+      model: RootNodeModel
+    });
+
+    // 2. 文本节点
+    class TextNodeModel extends RectNodeModel {}
+    class TextNodeView extends RectNode {}
+    
+    nodeConfigs.push({ 
+      type: 'TextNode', 
+      view: TextNodeView,
+      model: TextNodeModel
+    });
+
+    // 3. 属性节点
+    class PropertyNodeModel extends RectNodeModel {}
+    class PropertyNodeView extends RectNode {}
+    
+    nodeConfigs.push({ 
+      type: 'PropertyNode', 
+      view: PropertyNodeView,
+      model: PropertyNodeModel
+    });
+
+    // 4. 文件节点
+    class FileNodeModel extends RectNodeModel {}
+    class FileNodeView extends RectNode {}
+    
+    nodeConfigs.push({ 
+      type: 'FileNode', 
+      view: FileNodeView,
+      model: FileNodeModel
+    });
+
+    // 5. 图片节点
+    class ImageNodeModel extends RectNodeModel {}
+    class ImageNodeView extends RectNode {}
+    
+    nodeConfigs.push({ 
+      type: 'ImageNode', 
+      view: ImageNodeView,
+      model: ImageNodeModel
+    });
+
+    // 6. 视频节点
+    class VideoNodeModel extends RectNodeModel {}
+    class VideoNodeView extends RectNode {}
+    
+    nodeConfigs.push({ 
+      type: 'VideoNode', 
+      view: VideoNodeView,
+      model: VideoNodeModel
+    });
+
+    // 7. 音频节点
+    class AudioNodeModel extends RectNodeModel {}
+    class AudioNodeView extends RectNode {}
+    
+    nodeConfigs.push({ 
+      type: 'AudioNode', 
+      view: AudioNodeView,
+      model: AudioNodeModel
+    });
+
+    // 批量注册所有节点
+    const registeredNodes: string[] = [];
+    const failedNodes: Array<{ name: string; error: any }> = [];
+
+    nodeConfigs.forEach((config) => {
+      try {
+        logicflowLogger.debug(`正在注册节点: ${config.type}`, {
+          type: config.type,
+          hasView: !!config.view,
+          hasModel: !!config.model,
+          viewPrototype: !!config.view.prototype,
+          modelPrototype: !!config.model.prototype
+        });
+        
+        lf.register(config);
+        registeredNodes.push(config.type);
+        logicflowLogger.success(`${config.type} 注册成功`);
+      } catch (error) {
+        failedNodes.push({ name: config.type, error });
+        logicflowLogger.error(`${config.type} 注册失败`, error);
+      }
+    });
+    
+    // 注册完成后验证
+    logicflowLogger.info('节点注册完成统计', {
+      totalNodes: nodeConfigs.length,
+      successCount: registeredNodes.length,
+      failedCount: failedNodes.length,
+      registeredNodes,
+      failedNodes: failedNodes.map(f => f.name)
+    });
+
+    // 验证节点是否真正注册到LogicFlow中
+    const graphModel = (lf as any).graphModel;
+    if (graphModel && graphModel.modelMap) {
+      const registeredTypes = Object.keys(graphModel.modelMap);
+      logicflowLogger.success('LogicFlow内部已注册的节点类型', {
+        types: registeredTypes,
+        count: registeredTypes.length,
+        hasRootNode: registeredTypes.includes('RootNode'),
+        hasTextNode: registeredTypes.includes('TextNode')
+      });
+    } else {
+      logicflowLogger.warn('无法访问LogicFlow的modelMap进行验证');
+    }
+    
+    if (failedNodes.length > 0) {
+      throw new Error(`部分节点注册失败: ${failedNodes.map(f => f.name).join(', ')}`);
+    }
+    
+  } catch (error) {
+    logicflowLogger.error('自定义节点注册过程中发生错误', error);
+    throw error; // 重新抛出错误，阻止后续初始化
+  }
   
-  // 广播清空操作
-  if (collaborationManager.value && collaborationState.value.isConnected) {
+  logicflowLogger.groupEnd();
+}
+/**
+ * 设置LogicFlow事件监听器
+ */
+function setupLogicFlowEvents() {
+  if (!logicFlowInstance.value) return;
+
+  const lf = logicFlowInstance.value;
+
+  // 节点点击事件
+  lf.on('node:click', ({ data }) => {
+    console.log('节点点击:', data);
+  });
+
+  // 节点双击事件
+  lf.on('node:dblclick', ({ data }) => {
+    console.log('节点双击:', data);
+    // 可以在这里打开节点编辑对话框
+  });
+
+  // 节点拖拽事件
+  lf.on('node:dragstart', ({ data }) => {
+    broadcastOperation({
+      type: 'node-update',
+      nodeId: data.id,
+      data: {
+        position: { x: data.x, y: data.y },
+        isDragging: true,
+        dragStart: true,
+      },
+    });
+  });
+
+  lf.on('node:drag', ({ data }) => {
+    // 节流广播拖拽位置更新
+    broadcastOperation({
+      type: 'node-update',
+      nodeId: data.id,
+      data: {
+        position: { x: data.x, y: data.y },
+        isDragging: true,
+      },
+    });
+  });
+
+  lf.on('node:dragend', ({ data }) => {
+    broadcastOperation({
+      type: 'node-update',
+      nodeId: data.id,
+      data: {
+        position: { x: data.x, y: data.y },
+        isDragging: false,
+      },
+    });
+  });
+
+  // 节点添加事件
+  lf.on('node:add', ({ data }) => {
+    console.log('节点添加:', data);
+    broadcastOperation({
+      type: 'node-create',
+      nodeId: data.id,
+      data: {
+        type: data.type,
+        position: { x: data.x, y: data.y },
+        text: data.text?.value || '',
+        properties: data.properties || {},
+      },
+    });
+  });
+
+  // 节点删除事件
+  lf.on('node:delete', ({ data }) => {
+    console.log('节点删除:', data);
     broadcastOperation({
       type: 'node-delete',
-      data: { clearAll: true },
+      nodeId: data.id,
+      data: {},
+    });
+  });
+
+  // 边添加事件
+  lf.on('edge:add', ({ data }) => {
+    console.log('边添加:', data);
+    broadcastOperation({
+      type: 'edge-create',
+      edgeId: data.id,
+      data: {
+        source: data.sourceNodeId,
+        target: data.targetNodeId,
+      },
+    });
+  });
+
+  // 边删除事件
+  lf.on('edge:delete', ({ data }) => {
+    console.log('边删除:', data);
+    broadcastOperation({
+      type: 'edge-delete',
+      edgeId: data.id,
+      data: {},
+    });
+  });
+
+  // 文本更新事件
+  lf.on('text:update', ({ id, value }) => {
+    console.log('文本更新:', id, value);
+    broadcastOperation({
+      type: 'node-update',
+      nodeId: id,
+      data: {
+        text: value,
+      },
+    });
+  });
+}
+
+/**
+ * 确保有根节点
+ */
+function ensureRootNode() {
+  if (!logicFlowInstance.value) {
+    logicflowLogger.warn('无法创建根节点：LogicFlow实例不存在');
+    return;
+  }
+
+  logicflowLogger.group('根节点创建');
+  const lf = logicFlowInstance.value;
+  
+  try {
+    const graphData = lf.getGraphData();
+    logicflowLogger.debug('当前图形数据', {
+      nodesCount: graphData.nodes.length,
+      edgesCount: graphData.edges.length,
+      nodes: graphData.nodes
+    });
+    
+    // 检查是否已有根节点
+    const hasRootNode = graphData.nodes.some(node => 
+      node.type === 'RootNode' || node.properties?.nodeType === 'root'
+    );
+
+    if (!hasRootNode) {
+      logicflowLogger.info('未找到根节点，开始创建...');
+      
+      // 创建根节点
+      const rootNode = {
+        id: 'node_root',
+        type: 'RootNode',
+        x: 400,
+        y: 100,
+        text: {
+          value: props.projectName || '项目根节点',
+          x: 400,
+          y: 100,
+        },
+        properties: {
+          title: props.projectName || '项目根节点',
+          nodeType: 'root',
+          status: 'pending',
+        },
+      };
+
+      logicflowLogger.debug('根节点配置', rootNode);
+
+      try {
+        const addedNode = lf.addNode(rootNode);
+        logicflowLogger.success('根节点创建成功', {
+          nodeId: addedNode?.id || rootNode.id,
+          addedNode
+        });
+        
+        // 验证节点是否真的被添加
+        const updatedGraphData = lf.getGraphData();
+        logicflowLogger.info('创建后的图形数据', {
+          nodesCount: updatedGraphData.nodes.length,
+          nodes: updatedGraphData.nodes
+        });
+        
+        // 检查SVG元素是否被渲染
+        if (container.value) {
+          const svgElement = container.value.querySelector('svg');
+          const nodeElements = container.value.querySelectorAll('[data-node-id], .lf-node');
+          logicflowLogger.debug('DOM渲染检查', {
+            hasSvg: !!svgElement,
+            svgSize: svgElement ? {
+              width: svgElement.getAttribute('width'),
+              height: svgElement.getAttribute('height'),
+              viewBox: svgElement.getAttribute('viewBox')
+            } : null,
+            nodeElementsCount: nodeElements.length,
+            containerChildren: container.value.children.length
+          });
+        }
+        
+      } catch (error) {
+        logicflowLogger.error('根节点创建失败', error);
+      }
+    } else {
+      logicflowLogger.info('根节点已存在，跳过创建');
+    }
+  } catch (error) {
+    logicflowLogger.error('ensureRootNode执行失败', error);
+  }
+  
+  logicflowLogger.groupEnd();
+}
+
+/**
+ * 加载工作流数据
+ */
+function loadWorkflowData(workflowData: WorkflowData) {
+  if (!logicFlowInstance.value || !workflowData) return;
+
+  try {
+    // 转换数据格式
+    const logicFlowData = logicFlowConverter.toLogicFlowData(workflowData);
+    
+    // 渲染数据
+    logicFlowInstance.value.render(logicFlowData);
+    
+    // 确保有根节点
+    ensureRootNode();
+    
+    console.log('工作流数据加载成功');
+  } catch (error) {
+    console.error('加载工作流数据失败:', error);
+  }
+}
+
+/**
+ * 添加节点
+ */
+function addNode(nodeType: NodeType, position?: { x: number; y: number }) {
+  workflowLogger.group(`添加${nodeType}节点`);
+  workflowLogger.info(`尝试添加${nodeType}节点`, {
+    nodeType,
+    position,
+    timestamp: new Date().toISOString()
+  });
+  
+  // 检查LogicFlow实例状态
+  const instanceStatus = {
+    exists: !!logicFlowInstance.value,
+    container: !!container.value,
+    containerElement: container.value,
+    instanceType: typeof logicFlowInstance.value,
+    hasAddNodeMethod: logicFlowInstance.value ? typeof logicFlowInstance.value.addNode : '无实例'
+  };
+  
+  workflowLogger.debug('LogicFlow实例状态检查', instanceStatus);
+
+  if (!logicFlowInstance.value) {
+    workflowLogger.warn('LogicFlow实例未初始化，尝试重新初始化...');
+    
+    // 尝试重新初始化LogicFlow
+    if (container.value) {
+      workflowLogger.info('容器存在，重新初始化LogicFlow...');
+      initializeLogicFlow();
+      
+      // 等待一小段时间后重试
+      setTimeout(() => {
+        if (logicFlowInstance.value) {
+          workflowLogger.success('重新初始化成功，重试添加节点...');
+          addNode(nodeType, position);
+        } else {
+          workflowLogger.error('重新初始化失败，无法添加节点');
+        }
+        workflowLogger.groupEnd();
+      }, 100);
+    } else {
+      workflowLogger.error('容器元素不存在，无法初始化LogicFlow');
+      workflowLogger.groupEnd();
+    }
+    return;
+  }
+
+  const lf = logicFlowInstance.value;
+  const pos = position || {
+    x: 200 + Math.random() * 400,
+    y: 200 + Math.random() * 300,
+  };
+
+  workflowLogger.debug('节点位置计算', {
+    originalPosition: position,
+    finalPosition: pos,
+    isRandomPosition: !position
+  });
+
+  // 映射节点类型到LogicFlow类型
+  const typeMap: Record<NodeType, string> = {
+    root: 'RootNode',
+    text: 'TextNode',
+    property: 'PropertyNode',
+    file: 'FileNode',
+    image: 'ImageNode',
+    video: 'VideoNode',
+    audio: 'AudioNode',
+  };
+
+  const logicFlowType = typeMap[nodeType] || 'TextNode';
+  const nodeId = generateUniqueId('node');
+
+  const nodeConfig = {
+    id: nodeId,
+    type: logicFlowType,
+    x: pos.x,
+    y: pos.y,
+    text: {
+      value: `${nodeType.toUpperCase()} 节点`,
+      x: pos.x,
+      y: pos.y,
+    },
+    properties: {
+      title: `${nodeType.toUpperCase()} 节点`,
+      nodeType: nodeType,
+      status: 'pending' as NodeStatus,
+      textContent: '',
+      resourceUrl: '',
+      resourceName: '',
+      properties: nodeType === 'property' ? [{ key: '', value: '' }] : [],
+    },
+  };
+
+  workflowLogger.debug('节点配置生成', {
+    nodeId,
+    nodeType,
+    logicFlowType,
+    nodeConfig,
+    configKeys: Object.keys(nodeConfig)
+  });
+
+  try {
+    workflowLogger.time(`${nodeType}节点添加`);
+    lf.addNode(nodeConfig);
+    workflowLogger.timeEnd(`${nodeType}节点添加`);
+    
+    // 验证节点是否成功添加
+    const addedNode = lf.getNodeModelById(nodeId);
+    if (addedNode) {
+      workflowLogger.success(`成功添加${nodeType}节点`, {
+        nodeId,
+        nodeModel: addedNode,
+        nodeData: addedNode.getData ? addedNode.getData() : '无数据方法'
+      });
+    } else {
+      workflowLogger.warn(`节点添加后无法找到节点模型`, { nodeId });
+    }
+    
+  } catch (error) {
+    workflowLogger.error(`添加${nodeType}节点失败`, {
+      error,
+      nodeConfig,
+      logicFlowInstance: !!lf,
+      addNodeMethod: typeof lf.addNode
     });
   }
   
-  nodes.value = [];
-  edges.value = [];
-  ensureRoot();
-};
+  workflowLogger.groupEnd();
+}
 
+/**
+ * 保存图形数据
+ */
+function saveGraph() {
+  if (!logicFlowInstance.value) return;
+
+  try {
+    const logicFlowData = logicFlowInstance.value.getGraphData();
+    const workflowData = logicFlowConverter.fromLogicFlowData(logicFlowData);
+    
+    emit('save', { 
+      elements: workflowData.elements, 
+      timestamp: new Date().toISOString() 
+    });
+    
+    console.log('图形数据保存成功');
+  } catch (error) {
+    console.error('保存图形数据失败:', error);
+  }
+}
+
+/**
+ * 清空图形
+ */
+function clearGraph() {
+  if (!logicFlowInstance.value) return;
+  
+  if (!confirm('确定要清空所有节点吗？')) return;
+
+  // 广播清空操作
+  broadcastOperation({
+    type: 'node-delete',
+    data: { clearAll: true },
+  });
+
+  logicFlowInstance.value.clearData();
+  ensureRootNode();
+}
+
+/**
+ * 导出JSON
+ */
+function downloadJson() {
+  if (!logicFlowInstance.value) return;
+
+  try {
+    const logicFlowData = logicFlowInstance.value.getGraphData();
+    const workflowData = logicFlowConverter.fromLogicFlowData(logicFlowData);
+    
+    // 构建导出数据
+    const exportData = {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      project: {
+        name: props.projectName || 'Workflow Project',
+        exportTime: new Date().toISOString(),
+        totalNodes: logicFlowData.nodes.length,
+        totalEdges: logicFlowData.edges.length,
+        description: '工作流自动化与项目拆解图谱 (LogicFlow版本)',
+      },
+      data: workflowData,
+      logicFlowData: logicFlowData,
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${props.projectName || 'workflow'}_logicflow_schema.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    console.log('JSON导出成功');
+  } catch (error) {
+    console.error('导出JSON失败:', error);
+  }
+}
 // ==================== 协同功能方法 ====================
 
 /**
@@ -1106,21 +1080,25 @@ function setupCollaborationEventHandlers(): void {
 function handleRemoteOperation(operation: CollaborationOperation): void {
   console.log('收到远程操作:', operation);
 
+  if (!logicFlowInstance.value) return;
+
+  const lf = logicFlowInstance.value;
+
   switch (operation.type) {
     case 'node-create':
-      handleRemoteNodeCreate(operation);
+      handleRemoteNodeCreate(operation, lf);
       break;
     case 'node-update':
-      handleRemoteNodeUpdate(operation);
+      handleRemoteNodeUpdate(operation, lf);
       break;
     case 'node-delete':
-      handleRemoteNodeDelete(operation);
+      handleRemoteNodeDelete(operation, lf);
       break;
     case 'edge-create':
-      handleRemoteEdgeCreate(operation);
+      handleRemoteEdgeCreate(operation, lf);
       break;
     case 'edge-delete':
-      handleRemoteEdgeDelete(operation);
+      handleRemoteEdgeDelete(operation, lf);
       break;
   }
 }
@@ -1128,147 +1106,127 @@ function handleRemoteOperation(operation: CollaborationOperation): void {
 /**
  * 处理远程节点创建
  */
-function handleRemoteNodeCreate(operation: CollaborationOperation): void {
+function handleRemoteNodeCreate(operation: CollaborationOperation, lf: LogicFlow): void {
   const data = operation.data as any;
   if (!data || !operation.nodeId) return;
 
   // 检查节点是否已存在
-  if (getNodeById(operation.nodeId)) return;
+  const existingNode = lf.getNodeModelById(operation.nodeId);
+  if (existingNode) return;
 
-  const size = getNodeSize(data.type || 'text');
-  const newNode: NodeItem = {
-    id: operation.nodeId,
-    title: data.title || data.name || '远程节点',
-    type: data.type || 'text',
-    status: data.status || 'pending',
-    x: data.position?.x || 100,
-    y: data.position?.y || 100,
-    width: size.width,
-    height: size.height,
-    zIndex: 10,
-    config: data.config || getDefaultConfig(data.type || 'text'),
+  // 映射节点类型
+  const typeMap: Record<string, string> = {
+    root: 'RootNode',
+    text: 'TextNode',
+    property: 'PropertyNode',
+    file: 'FileNode',
+    image: 'ImageNode',
+    video: 'VideoNode',
+    audio: 'AudioNode',
   };
 
-  nodes.value.push(newNode);
+  const logicFlowType = typeMap[data.type] || 'TextNode';
 
-  // 如果有父节点，创建连接
-  if (data.parentId) {
-    createEdge(data.parentId, operation.nodeId);
-  }
+  const nodeConfig = {
+    id: operation.nodeId,
+    type: logicFlowType,
+    x: data.position?.x || 100,
+    y: data.position?.y || 100,
+    text: {
+      value: data.text || '远程节点',
+      x: data.position?.x || 100,
+      y: data.position?.y || 100,
+    },
+    properties: {
+      ...data.properties,
+      nodeType: data.type,
+    },
+  };
+
+  lf.addNode(nodeConfig);
 }
 
 /**
  * 处理远程节点更新
  */
-function handleRemoteNodeUpdate(operation: CollaborationOperation): void {
+function handleRemoteNodeUpdate(operation: CollaborationOperation, lf: LogicFlow): void {
   const data = operation.data as any;
   if (!data || !operation.nodeId) return;
 
-  const node = getNodeById(operation.nodeId);
-  if (!node) return;
+  const nodeModel = lf.getNodeModelById(operation.nodeId);
+  if (!nodeModel) return;
 
-  // 如果当前正在拖拽这个节点，忽略远程更新避免冲突
-  if (dragging.active && dragging.id === operation.nodeId) {
-    console.log(`忽略正在拖拽节点 ${operation.nodeId} 的远程更新`);
-    return;
+  // 更新节点位置
+  if (data.position) {
+    lf.moveNode(operation.nodeId, data.position.x, data.position.y);
+  }
+
+  // 更新节点文本
+  if (data.text !== undefined) {
+    nodeModel.updateText(data.text);
   }
 
   // 更新节点属性
-  if (data.title !== undefined) node.title = data.title;
-  if (data.status !== undefined) node.status = data.status;
-  if (data.type !== undefined) node.type = data.type;
-  if (data.config !== undefined) node.config = { ...node.config, ...data.config };
-  
-  // 更新节点位置
-  if (data.position) {
-    node.x = data.position.x;
-    node.y = data.position.y;
-    
-    // 如果是拖拽相关的更新，添加视觉反馈
-    if (data.isDragging) {
-      const nodeElement = document.getElementById(`node_${operation.nodeId}`);
-      if (nodeElement) {
-        if (data.dragStart) {
-          // 拖拽开始
-          nodeElement.classList.add('remote-drag-start');
-          setTimeout(() => {
-            nodeElement.classList.remove('remote-drag-start');
-            nodeElement.classList.add('remote-dragging');
-          }, 200);
-        } else {
-          // 拖拽中
-          nodeElement.classList.add('remote-dragging');
-        }
-        
-        // 拖拽结束时移除样式
-        if (!data.isDragging) {
-          nodeElement.classList.remove('remote-dragging', 'remote-drag-start');
-        }
-      }
-    } else {
-      // 非拖拽更新，移除拖拽样式
-      const nodeElement = document.getElementById(`node_${operation.nodeId}`);
-      if (nodeElement) {
-        nodeElement.classList.remove('remote-dragging', 'remote-drag-start');
-      }
-    }
-    
-    const dragStatus = data.dragStart ? ' [开始拖拽]' : data.isDragging ? ' [拖拽中]' : ' [拖拽结束]';
-    console.log(`远程更新节点 ${operation.nodeId} 位置: (${data.position.x}, ${data.position.y})${data.isDragging || data.dragStart ? dragStatus : ''}`);
+  if (data.properties) {
+    nodeModel.setProperties({
+      ...nodeModel.getProperties(),
+      ...data.properties,
+    });
   }
 }
 
 /**
  * 处理远程节点删除
  */
-function handleRemoteNodeDelete(operation: CollaborationOperation): void {
+function handleRemoteNodeDelete(operation: CollaborationOperation, lf: LogicFlow): void {
   const data = operation.data as any;
   
   // 处理清空所有节点
   if (data?.clearAll) {
-    nodes.value = [];
-    edges.value = [];
-    ensureRoot();
+    lf.clearData();
+    ensureRootNode();
     return;
   }
 
   if (!operation.nodeId) return;
 
-  // 删除节点
-  nodes.value = nodes.value.filter(n => n.id !== operation.nodeId);
-  
-  // 删除相关连接
-  edges.value = edges.value.filter(e => 
-    e.source !== operation.nodeId && e.target !== operation.nodeId
-  );
+  const nodeModel = lf.getNodeModelById(operation.nodeId);
+  if (nodeModel) {
+    lf.deleteNode(operation.nodeId);
+  }
 }
 
 /**
  * 处理远程边创建
  */
-function handleRemoteEdgeCreate(operation: CollaborationOperation): void {
+function handleRemoteEdgeCreate(operation: CollaborationOperation, lf: LogicFlow): void {
   const data = operation.data as any;
   if (!data || !data.source || !data.target) return;
 
   // 检查边是否已存在
-  if (edges.value.find(e => e.source === data.source && e.target === data.target)) {
-    return;
-  }
+  const existingEdge = lf.getEdgeModelById(operation.edgeId || '');
+  if (existingEdge) return;
 
-  edges.value.push({
+  const edgeConfig = {
     id: operation.edgeId || generateUniqueId('edge'),
-    source: data.source,
-    target: data.target,
-  });
+    type: 'polyline',
+    sourceNodeId: data.source,
+    targetNodeId: data.target,
+  };
+
+  lf.addEdge(edgeConfig);
 }
 
 /**
  * 处理远程边删除
  */
-function handleRemoteEdgeDelete(operation: CollaborationOperation): void {
+function handleRemoteEdgeDelete(operation: CollaborationOperation, lf: LogicFlow): void {
   if (!operation.edgeId) return;
 
-  edges.value = edges.value.filter(e => e.id !== operation.edgeId);
+  const edgeModel = lf.getEdgeModelById(operation.edgeId);
+  if (edgeModel) {
+    lf.deleteEdge(operation.edgeId);
+  }
 }
 
 /**
@@ -1307,7 +1265,6 @@ function handleUserConfigSave(userConfig: UserConfig): void {
  * 聚焦到用户
  */
 function focusOnUser(user: User): void {
-  // 这里可以实现聚焦到用户光标的逻辑
   console.log('聚焦到用户:', user.displayName);
 }
 
@@ -1358,7 +1315,6 @@ async function reconnectCollaboration(): Promise<void> {
  * 刷新用户列表
  */
 function refreshUsers(): void {
-  // 这里可以实现刷新用户列表的逻辑
   console.log('刷新用户列表');
 }
 
@@ -1372,7 +1328,6 @@ function handleCursorClick(userId: string): void {
   }
 }
 </script>
-
 <style scoped>
 .workflow-editor {
   height: 100vh;
@@ -1432,11 +1387,13 @@ function handleCursorClick(userId: string): void {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  z-index: 10;
 }
 
 .toolbar h3 {
   margin: 0;
   color: #333;
+  font-size: 16px;
 }
 
 .tool-buttons {
@@ -1444,7 +1401,6 @@ function handleCursorClick(userId: string): void {
   gap: 0.5rem;
   align-items: center;
 }
-
 .btn {
   padding: 0.5rem 1rem;
   border: none;
@@ -1487,11 +1443,6 @@ function handleCursorClick(userId: string): void {
   color: white;
 }
 
-.btn-block {
-  width: 100%;
-  justify-content: center;
-}
-
 .icon {
   font-size: 1.1rem;
 }
@@ -1507,317 +1458,71 @@ function handleCursorClick(userId: string): void {
   flex: 1;
   display: flex;
   overflow: hidden;
-  min-height: 600px;
-  width: 100%;
-  max-width: 100%;
-}
-
-.graph-container {
-  flex: 1;
   position: relative;
-  min-height: 600px;
-  width: 100%;
-  max-width: 100%;
 }
 
-.cytoplasm-container {
+.logicflow-container {
   width: 100%;
   height: 100%;
   background: #fafafa;
-  border: 2px solid #ddd;
   border-radius: 4px;
+  overflow: hidden;
+  /* 添加边界框以便调试 */
+  border: 2px solid #e0e0e0;
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
   position: relative;
-  overflow: hidden;
-  min-height: 600px;
 }
 
-.edge-layer {
+/* 添加调试信息显示 */
+.logicflow-container::before {
+  content: 'LogicFlow画布区域';
   position: absolute;
-  inset: 0;
+  top: 10px;
+  left: 10px;
+  padding: 4px 8px;
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #667eea;
   z-index: 1;
   pointer-events: none;
 }
 
-.node-overlay-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-}
-
-.node-overlay {
-  position: absolute;
-  pointer-events: auto;
-  transition: all 0.1s ease-out;
-}
-
-.node-overlay.remote-drag-start {
-  animation: dragStartPulse 0.3s ease-out;
-}
-
-.node-overlay.remote-dragging {
-  box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
-  transform: scale(1.02);
-  z-index: 999;
-}
-
-.node-overlay.remote-dragging .node-card {
-  border-color: #667eea;
-  background: rgba(102, 126, 234, 0.05);
-}
-
-@keyframes dragStartPulse {
-  0% {
-    transform: scale(1);
-    box-shadow: 0 0 0 rgba(102, 126, 234, 0.6);
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
   }
   50% {
-    transform: scale(1.05);
-    box-shadow: 0 0 30px rgba(102, 126, 234, 0.8);
-  }
-  100% {
-    transform: scale(1.02);
-    box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+    opacity: 0.5;
   }
 }
 
-.node-overlay,
-.node-card {
-  box-sizing: border-box;
-}
-
-.node-card {
-  width: 100%;
-  height: 100%;
-  border-radius: 12px;
-  background: #ffffff;
-  border: 2px solid #2e73b2;
-  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.18);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.node-card-header {
-  background: linear-gradient(180deg, #5aa6e6 0%, #2f7bbd 100%);
-  color: #fff;
-  padding: 8px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.node-title-input {
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  flex: 1;
-  margin-right: 8px;
-  outline: none;
-}
-.node-title-input::placeholder {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.node-header-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.node-type-select,
-.node-status-select {
-  background: #ffffff;
-  border: 1px solid #c9d7ea;
-  border-radius: 6px;
-  padding: 4px;
-  font-size: 11px;
-  color: #2c3e50;
-  width: auto;
-  min-width: 60px;
-}
-
-.node-card-body {
-  flex: 1;
-  padding: 10px;
-  background: #f9fbfd;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.node-textarea {
-  flex: 1;
-  border: 1px solid #cfd8e3;
-  border-radius: 8px;
-  padding: 8px;
-  font-size: 12px;
-  resize: none;
-  background: #ffffff;
-  color: #2c3e50;
-}
-
-.node-text-count {
-  text-align: right;
-  font-size: 11px;
-  color: #7b8794;
-}
-
-.additional-input {
-  margin-top: 4px;
-}
-.node-file-input {
-  width: 100%;
-  border: 1px solid #d4deea;
-  border-radius: 6px;
-  padding: 6px;
-  font-size: 12px;
-  background: #ffffff;
-  color: #2c3e50;
-  box-sizing: border-box;
-}
-
-.property-list-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
-.property-list {
-  flex: 1;
-  overflow-y: auto;
-  margin-bottom: 8px;
-}
-
-.property-row {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 4px;
-  align-items: center;
-}
-
-.prop-input {
-  flex: 1;
-  border: 1px solid #cfd8e3;
-  border-radius: 4px;
-  padding: 4px 6px;
-  font-size: 11px;
-  min-width: 0;
-}
-
-.prop-key {
-  flex: 0.8;
-  font-weight: 500;
-}
-
-.remove-prop-btn {
-  background: transparent;
-  border: none;
-  color: #f44336;
-  cursor: pointer;
-  padding: 0 4px;
-  font-size: 12px;
-}
-
-.add-prop-btn {
-  background: #e9f0f7;
-  border: 1px dashed #b1c5d8;
-  color: #2e73b2;
-  border-radius: 4px;
-  padding: 4px;
-  font-size: 11px;
-  cursor: pointer;
-  text-align: center;
-  width: 100%;
-}
-.add-prop-btn:hover {
-  background: #dfe8f2;
-}
-
-.node-media-body {
-  align-items: center;
-  justify-content: center;
-}
-
-.node-media-icon {
-  width: 70px;
-  height: 55px;
-  border-radius: 12px;
-  border: 2px solid #cfd8e3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  color: #6b7c93;
-  background: #ffffff;
-}
-
-.node-card-root {
-  background: linear-gradient(180deg, #1f5d98 0%, #0e3f6f 100%);
-  border-radius: 14px;
-  border: 2px solid #0b3c66;
-  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.22);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  width: 100%;
-}
-
-.node-root-label {
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.context-menu {
-  position: absolute;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-  z-index: 30;
-  min-width: 140px;
-}
-
-.context-menu-item {
-  border: none;
-  background: transparent;
-  padding: 0.6rem 0.9rem;
-  text-align: left;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: #333;
-}
-
-.context-menu-item:hover {
-  background: rgba(102, 126, 234, 0.08);
-}
-.context-menu-item.danger {
-  color: #f44336;
-}
-.context-menu-divider {
-  height: 1px;
-  background: #eee;
-  margin: 4px 0;
-}
-.context-menu-group {
-  font-size: 0.75rem;
-  color: #999;
-  padding: 4px 14px;
-  text-transform: uppercase;
-}
-.highlight-item {
-  color: #2196f3;
-  font-weight: bold;
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .toolbar {
+    padding: 0.75rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .toolbar h3 {
+    font-size: 14px;
+  }
+  
+  .tool-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
+  
+  .online-users-panel {
+    top: 60px;
+    right: 10px;
+  }
 }
 </style>
