@@ -13,7 +13,7 @@ FlowInOne already has a working canvas editor and collaboration backend. This mi
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Data Model** - Establish the authoritative schema and resolve dual-write architectural conflicts before any code is written (4/4 success criteria met)
-- [x] **Phase 2: Node API** - Expose CRUD, status transitions, execution history, and canvas sync endpoints (completed 2026-03-13)
+- [x] **Phase 2: Node API** - Expose CRUD, status transitions, execution history, and canvas sync endpoints (completed 2026-03-13)
 - [ ] **Phase 3: Workflow Export** - Deliver the AI IDE entry point with topological sort, can_execute flags, and cycle detection
 - [ ] **Phase 4: Node Edit Panel** - Build the frontend authoring UI where developers fill in requirements and prompts per node
 - [ ] **Phase 5: Status Visualization** - Color-code node borders by status on the canvas and keep them in sync via WebSocket
@@ -62,7 +62,11 @@ Plans:
   2. Every node in the export has a `can_execute` boolean that is true only when all its dependency nodes are completed
   3. The export includes a top-level `execution_order` array (topological sort) and `executable_now` array (currently executable node IDs)
   4. Submitting a workflow with a cyclic dependency returns HTTP 422 with a description of the cycle path
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Test spec stubs (15 RED tests): workflow-export.service.spec.ts (14 cases, EXPORT-01..06) + workflow.controller.spec.ts (1 case, EXPORT-01) (EXPORT-01, EXPORT-02, EXPORT-03, EXPORT-04, EXPORT-05, EXPORT-06)
+- [ ] 03-02-PLAN.md — WorkflowExportService (Kahn sort + cycle detection), GET export route in WorkflowController, NodeModule registration, human smoke test (EXPORT-01, EXPORT-02, EXPORT-03, EXPORT-04, EXPORT-05, EXPORT-06)
 
 ### Phase 4: Node Edit Panel
 **Goal**: Developers can open any node on the canvas and fill in its requirement, prompt, and attributes through a purpose-built sidebar panel
@@ -106,7 +110,7 @@ Note: Phase 3 and Phase 4 can run in parallel after Phase 2 completes — they h
 |-------|----------------|--------|-----------|
 | 1. Data Model | 3/3 | Complete    | 2026-03-13 |
 | 2. Node API | 2/3 | Complete    | 2026-03-13 |
-| 3. Workflow Export | 0/TBD | Not started | - |
+| 3. Workflow Export | 0/2 | Not started | - |
 | 4. Node Edit Panel | 0/TBD | Not started | - |
 | 5. Status Visualization | 0/TBD | Not started | - |
 | 6. Review Workflow | 0/TBD | Not started | - |
