@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-stopped_at: Completed 04-node-edit-panel/04-02-PLAN.md
-last_updated: "2026-03-14T06:28:22.640Z"
+stopped_at: Completed 04-node-edit-panel/04-03-PLAN.md
+last_updated: "2026-03-14T06:32:35.464Z"
 last_activity: 2026-03-14 — Plan 04-01 complete
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
   percent: 83
 ---
 
@@ -94,6 +94,7 @@ Progress: [████████████████░░░░] 57% (ph
 | Phase 03-workflow-export P02 | 11 | 3 tasks | 3 files |
 | Phase 04-node-edit-panel P01 | 3 | 2 tasks | 4 files |
 | Phase 04-node-edit-panel P02 | 6 | 2 tasks | 5 files |
+| Phase 04-node-edit-panel P03 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,8 @@ Recent decisions affecting current work:
 - [Phase 03-workflow-export]: WorkflowExportResponse and ExportNode interfaces exported from service — required to avoid TS4053 return type inference error on public controller method
 - [Phase 04-node-edit-panel]: CardNodeModel/CardNodeView as standalone classes (not HtmlNode/HtmlNodeModel) — LogicFlow BaseNodeModel constructor requires graphModel, preventing direct test instantiation; pure TS classes satisfy tests, adapter in logicflow.config.ts
 - [Phase 04-node-edit-panel]: Try/catch wrapping res.json() in patchNode error path — synchronous TypeError from undefined().json bypasses Promise .catch(); explicit try/catch handles both real and mock responses
+- [Phase 04-node-edit-panel]: addNode typeMap updated from legacy TextNode/ImageNode (RectNode) to lowercase text/image etc. (CardNode) — aligns LF type with registerCardNodes registration
+- [Phase 04-node-edit-panel]: registerCardNodes placed before applyTheme inside createLogicFlowInstance — card nodes registered before any render call
 
 ### Pending Todos
 
@@ -140,6 +143,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-14T06:28:22.637Z
-Stopped at: Completed 04-node-edit-panel/04-02-PLAN.md
+Last session: 2026-03-14T06:32:35.461Z
+Stopped at: Completed 04-node-edit-panel/04-03-PLAN.md
 Resume file: None
