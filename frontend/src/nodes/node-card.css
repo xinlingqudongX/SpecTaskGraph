@@ -6,8 +6,9 @@
   background: #fff;
   font-family: inherit;
   font-size: 13px;
-  overflow: hidden;
-  min-width: 260px;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
   cursor: default;
   user-select: none;
 }
@@ -56,9 +57,11 @@
   border-radius: 4px;
   padding: 6px;
   font-size: 12px;
-  resize: vertical;
+  resize: none;
   font-family: inherit;
   box-sizing: border-box;
+  user-select: text;
+  cursor: text;
 }
 
 .node-card__attributes {
