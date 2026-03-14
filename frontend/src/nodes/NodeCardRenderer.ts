@@ -217,9 +217,19 @@ export class CardNodeView {
     const card = document.createElement('div');
     card.className = 'node-card';
 
-    // 阻止 mousedown/click 冒泡（防止触发 LogicFlow node:click）
-    card.addEventListener('mousedown', (e) => e.stopPropagation());
-    card.addEventListener('click', (e) => e.stopPropagation());
+    // 仅阻止表单交互元素（textarea/input/button）的 mousedown 冒泡，
+    // 防止在编辑区内操作时误触 LogicFlow 的拖拽或 node:click。
+    // 卡片容器本身不阻断，保证 LogicFlow 能接收 mousedown 启动节点拖拽。
+    card.addEventListener('mousedown', (e) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'BUTTON'
+      ) {
+        e.stopPropagation();
+      }
+    });
 
     // 顶部 header：显示节点类型
     const header = document.createElement('div');
