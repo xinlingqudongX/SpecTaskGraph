@@ -32,11 +32,11 @@
 
 ### Frontend Edit Panel
 
-- [ ] **EDITOR-01**: 新建 `NodeEditPanel.vue` 组件，点击节点时从右侧滑入显示
-- [ ] **EDITOR-02**: 面板包含 requirement 文本域（多行），展示/编辑需求说明
-- [ ] **EDITOR-03**: 面板包含 prompt 文本域（多行），展示/编辑 AI 提示词
-- [ ] **EDITOR-04**: 面板包含 attributes 键值对表格，支持动态增删行
-- [ ] **EDITOR-05**: 面板保存按钮调用 `PATCH /api/v1/node/:id`，保存成功后显示反馈
+- [x] **EDITOR-01**: 新建 `NodeEditPanel.vue` 组件，点击节点时从右侧滑入显示
+- [x] **EDITOR-02**: 面板包含 requirement 文本域（多行），展示/编辑需求说明
+- [x] **EDITOR-03**: 面板包含 prompt 文本域（多行），展示/编辑 AI 提示词
+- [x] **EDITOR-04**: 面板包含 attributes 键值对表格，支持动态增删行
+- [x] **EDITOR-05**: 面板保存按钮调用 `PATCH /api/v1/node/:id`，保存成功后显示反馈
 
 ### Status Visualization
 
@@ -92,11 +92,11 @@
 | EXPORT-04 | Phase 3 | Complete |
 | EXPORT-05 | Phase 3 | Complete |
 | EXPORT-06 | Phase 3 | Complete |
-| EDITOR-01 | Phase 4 | Pending |
-| EDITOR-02 | Phase 4 | Pending |
-| EDITOR-03 | Phase 4 | Pending |
-| EDITOR-04 | Phase 4 | Pending |
-| EDITOR-05 | Phase 4 | Pending |
+| EDITOR-01 | Phase 4 | Complete |
+| EDITOR-02 | Phase 4 | Complete |
+| EDITOR-03 | Phase 4 | Complete |
+| EDITOR-04 | Phase 4 | Complete |
+| EDITOR-05 | Phase 4 | Complete |
 | VISUAL-01 | Phase 5 | Pending |
 | VISUAL-02 | Phase 5 | Pending |
 | VISUAL-03 | Phase 5 | Pending |

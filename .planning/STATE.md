@@ -40,12 +40,12 @@ See: .planning/PROJECT.md (updated 2026-03-13)
 
 ## Current Position
 
-Phase: 1 of 6 (Data Model) — COMPLETE
-Plan: 3 of 3 in current phase (all complete)
-Status: Phase 1 Complete — Ready for Phase 2
-Last activity: 2026-03-13 — Plan 01-03 complete
+Phase: 4 of 6 (Node Edit Panel) — IN PROGRESS
+Plan: 1 of 5 in current phase (Wave 0 complete)
+Status: Phase 4 Plan 1 Complete — Wave 0 RED test stubs established
+Last activity: 2026-03-14 — Plan 04-01 complete
 
-Progress: [█████████░] 17% (phase 1 of 6 done)
+Progress: [████████████████░░░░] 57% (phases 1-3 done + phase 4 plan 1 done)
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Progress: [█████████░] 17% (phase 1 of 6 done)
 | Phase 02-node-api P03 | 15 | 2 tasks | 3 files |
 | Phase 03-workflow-export P01 | 8 | 2 tasks | 2 files |
 | Phase 03-workflow-export P02 | 11 | 3 tasks | 3 files |
+| Phase 04-node-edit-panel P01 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,7 @@ Recent decisions affecting current work:
 - [Phase 03-workflow-export]: UnprocessableEntityException cycle response shape: { error: string, cycle: string[] } where cycle[0] === cycle[last]
 - [Phase 03-workflow-export]: Controller spec pre-writes two-argument constructor (NodeService + WorkflowExportService) — RED now, GREEN after Wave 2
 - [Phase 03-workflow-export]: UnprocessableEntityException with object body used for flat cycle error response — getResponse() returns { error, cycle } directly without message wrapper
+- [Phase 04-node-edit-panel]: Placeholder file + vi.mock empty factory pattern for Wave 0 RED tests — create `export {}` placeholder so Vite resolves the import path, then vi.mock overrides with {} to force undefined exports (RED)
 - [Phase 03-workflow-export]: WorkflowExportResponse and ExportNode interfaces exported from service — required to avoid TS4053 return type inference error on public controller method
 
 ### Pending Todos
@@ -119,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T10:35:57.420Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-node-edit-panel/04-CONTEXT.md
+Last session: 2026-03-14T06:19:33Z
+Stopped at: Completed 04-node-edit-panel/04-01-PLAN.md
+Resume file: .planning/phases/04-node-edit-panel/04-02-PLAN.md
