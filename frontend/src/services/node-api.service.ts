@@ -28,8 +28,14 @@ export async function patchNode(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as any).message ?? `HTTP ${res.status}`);
+    let errMessage: string | undefined;
+    try {
+      const err = await res.json();
+      errMessage = (err as any).message;
+    } catch {
+      // json 不可用，使用默认错误消息
+    }
+    throw new Error(errMessage ?? `HTTP ${res.status}`);
   }
 
   return res.json();

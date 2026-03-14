@@ -8,10 +8,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-// Wave 1 将创建真实模块；此处 mock 返回空对象，使 CardNodeModel/CardNodeView 为 undefined，
-// 所有 expect(...).toBeDefined() 和行为断言均将失败（RED）。
-vi.mock('../nodes/NodeCardRenderer', () => ({}));
-
+// Wave 1: 直接使用真实实现（不再 mock），测试转为 GREEN
 import { CardNodeModel, CardNodeView } from '../nodes/NodeCardRenderer';
 
 // ─────────────────────────────────────────────
