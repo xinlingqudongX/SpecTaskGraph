@@ -4,10 +4,39 @@
  */
 
 import LogicFlow from '@logicflow/core';
+import { HtmlNode, HtmlNodeModel } from '@logicflow/core';
 import { Control, Menu, SelectionSelect, Snapshot } from '@logicflow/extension';
 import { logicflowLogger } from '../utils/logger';
 import { CardNodeView } from '../nodes/NodeCardRenderer';
-import { CardNodeModel } from '../nodes/NodeCardModel';
+import { COLLAPSED_HEIGHT, EXPANDED_HEIGHT_BASE } from '../nodes/NodeCardModel';
+
+/**
+ * LogicFlow-compatible wrappers that extend the proper base classes.
+ * CardNodeView/CardNodeModel are pure TS classes for unit testing.
+ * These wrappers bridge them into the LogicFlow rendering pipeline.
+ */
+class LFCardNodeView extends HtmlNode {
+  setHtml(rootEl: SVGForeignObjectElement): void {
+    const view = new CardNodeView({ model: this.props.model as any });
+    view.setHtml(rootEl);
+  }
+  shouldUpdate(): boolean {
+    return true;
+  }
+}
+
+class LFCardNodeModel extends HtmlNodeModel {
+  setAttributes(): void {
+    this.width = 280;
+    const props = this.properties as Record<string, any>;
+    if (props.expanded) {
+      const attrCount = Array.isArray(props.attributes) ? props.attributes.length : 0;
+      this.height = EXPANDED_HEIGHT_BASE + attrCount * 36;
+    } else {
+      this.height = COLLAPSED_HEIGHT;
+    }
+  }
+}
 
 // LogicFlow基础配置
 export const logicFlowConfig = {
@@ -330,7 +359,7 @@ export function applyTheme(lf: LogicFlow): void {
 export function registerCardNodes(lf: LogicFlow): void {
   const CARD_NODE_TYPES = ['text', 'image', 'audio', 'video', 'file', 'property'];
   for (const type of CARD_NODE_TYPES) {
-    lf.register({ type, view: CardNodeView, model: CardNodeModel });
+    lf.register({ type, view: LFCardNodeView, model: LFCardNodeModel });
   }
 }
 
