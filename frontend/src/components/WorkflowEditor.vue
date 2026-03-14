@@ -569,7 +569,7 @@ function setupLogicFlowEvents() {
 
   const lf = logicFlowInstance.value;
 
-  // 节点点击事件：切换展开/折叠态（RootNode 跳过）
+  // 节点点击事件：只负责展开（收起由卡片 header 内部处理，避免点击表单元素时误触）
   lf.on('node:click', ({ data }) => {
     console.log('节点点击:', data);
     // 跳过 RootNode，不展开编辑区
@@ -577,7 +577,10 @@ function setupLogicFlowEvents() {
     const model = lf.getNodeModelById(data.id);
     if (!model) return;
     const current = model.getProperties();
-    model.setProperties({ expanded: !current.expanded });
+    // 仅当折叠时才展开；展开态的收起由卡片 header 按钮处理
+    if (!current.expanded) {
+      model.setProperties({ expanded: true });
+    }
   });
 
   // 节点双击事件

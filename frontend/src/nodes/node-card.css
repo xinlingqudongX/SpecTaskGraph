@@ -27,6 +27,21 @@
   gap: 6px;
 }
 
+.node-card__collapse-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #aac4e0;
+  border-radius: 3px;
+  color: #5a8bbf;
+  font-size: 11px;
+  padding: 1px 6px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.node-card__collapse-btn:hover {
+  background: #e8f0fa;
+}
+
 .node-card__summary {
   padding: 4px 10px 8px;
   color: #555;

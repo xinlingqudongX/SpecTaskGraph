@@ -239,13 +239,28 @@ export class CardNodeView {
     card.addEventListener('mousedown', stopFormEvents);
     card.addEventListener('click', stopFormEvents);
 
-    // 顶部 header：显示节点类型
+    // 顶部 header：显示节点类型 + 展开时的收起按钮
     const header = document.createElement('div');
     header.className = 'node-card__header';
     const typeLabel = document.createElement('span');
     typeLabel.className = 'node-card__type';
     typeLabel.textContent = props.nodeType ?? props.title ?? '节点';
     header.appendChild(typeLabel);
+
+    // 展开态显示收起按钮（是唯一收起入口，避免表单交互误触收起）
+    if (props.expanded && model.setProperties) {
+      const collapseBtn = document.createElement('button');
+      collapseBtn.type = 'button';
+      collapseBtn.className = 'node-card__collapse-btn';
+      collapseBtn.textContent = '收起';
+      collapseBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+      collapseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        model.setProperties!({ expanded: false });
+      });
+      header.appendChild(collapseBtn);
+    }
+
     card.appendChild(header);
 
     // 折叠态摘要（始终显示）
