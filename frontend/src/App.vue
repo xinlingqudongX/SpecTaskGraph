@@ -493,7 +493,12 @@ async function handleFileOpened(graph: WorkflowGraph) {
     currentWorkflowData.value = convertToEditorFormat(graph);
 
     // 绑定项目ID到当前工作区句柄，确保保存可用
+    // 先删除 WorkspaceManager 用目录名存的旧记录，避免重复显示
     if (currentWorkspace.value) {
+      const oldId = currentWorkspace.value.handle.name.replace(/[^a-zA-Z0-9-_]/g, '-');
+      if (oldId !== graph.projectId) {
+        await fileSystemService.revokeDirectoryAccess(oldId).catch(() => {});
+      }
       await fileSystemService.saveDirectoryHandle(
         graph.projectId,
         currentWorkspace.value.handle,
