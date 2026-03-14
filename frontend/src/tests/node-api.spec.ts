@@ -8,9 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock 目标模块——Wave 1 实现前返回空对象，patchNode/showSaveStatus 均为 undefined（RED）
-vi.mock('../services/node-api.service', () => ({}));
-
+// Wave 1: 直接使用真实实现（不再 mock），测试转为 GREEN
 import { patchNode, showSaveStatus } from '../services/node-api.service';
 
 // ─────────────────────────────────────────────
