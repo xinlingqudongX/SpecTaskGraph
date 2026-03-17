@@ -97,7 +97,7 @@
 </template>
 <script setup lang="ts">
 import { ref, reactive, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue';
-import LogicFlow, { RectNode, RectNodeModel } from '@logicflow/core';
+import LogicFlow, { RectNode, RectNodeModel, HtmlNode, HtmlNodeModel } from '@logicflow/core';
 import '@logicflow/core/dist/index.css'; // 导入LogicFlow核心样式
 import '@logicflow/extension/dist/index.css'; // 导入LogicFlow扩展样式
 import CollaborativeCursors from './CollaborativeCursors.vue';
@@ -379,12 +379,17 @@ function initializeLogicFlow() {
     setupLogicFlowEvents();
     logicflowLogger.timeEnd('事件监听器设置');
     
-    // 确保有根节点（在节点注册完成后）
-    logicflowLogger.info('正在确保根节点存在...');
-    logicflowLogger.time('根节点创建');
-    ensureRootNode();
-    logicflowLogger.timeEnd('根节点创建');
-    
+    // 如果有 workflowData prop，直接加载；否则确保根节点存在
+    if (props.workflowData) {
+      logicflowLogger.info('初始化后加载工作流数据');
+      loadWorkflowData(props.workflowData);
+    } else {
+      logicflowLogger.info('正在确保根节点存在...');
+      logicflowLogger.time('根节点创建');
+      ensureRootNode();
+      logicflowLogger.timeEnd('根节点创建');
+    }
+
     logicflowLogger.timeEnd('LogicFlow初始化总耗时');
     logicflowLogger.success('LogicFlow初始化完成');
     logicflowLogger.groupEnd();
@@ -419,12 +424,60 @@ function registerCustomNodes() {
     // 定义所有自定义节点类（包含View和Model）
     const nodeConfigs: Array<{ type: string; view: any; model: any }> = [];
 
-    // 1. 根节点
-    class RootNodeModel extends RectNodeModel {}
-    class RootNodeView extends RectNode {}
-    
-    nodeConfigs.push({ 
-      type: 'RootNode', 
+    // 1. 根节点（HtmlNode，避免 LogicFlow 默认 SVG text 与节点框分离）
+    class RootNodeModel extends HtmlNodeModel {
+      setAttributes() {
+        this.width = 180;
+        this.height = 70;
+      }
+    }
+    class RootNodeView extends HtmlNode {
+      setHtml(rootEl: SVGForeignObjectElement) {
+        rootEl.innerHTML = '';
+        const model = this.props.model as any;
+        const title: string = model.properties?.title || model.text?.value || '开始';
+
+        const wrap = document.createElement('div');
+        wrap.style.cssText = [
+          'width:100%', 'height:100%', 'box-sizing:border-box',
+          'background:linear-gradient(160deg,#1f5d98 0%,#0e3f6f 100%)',
+          'border-radius:8px', 'border:2px solid #0b3c66',
+          'display:flex', 'flex-direction:column',
+          'align-items:center', 'justify-content:flex-start',
+          'overflow:hidden',
+        ].join(';');
+
+        // 顶部标签栏
+        const tag = document.createElement('div');
+        tag.style.cssText = [
+          'width:100%', 'padding:4px 8px 2px', 'box-sizing:border-box',
+          'font-size:10px', 'font-weight:700', 'letter-spacing:1px',
+          'color:rgba(255,255,255,0.6)', 'text-transform:uppercase',
+          'border-bottom:1px solid rgba(255,255,255,0.15)',
+          'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        ].join(';');
+        tag.textContent = 'START';
+
+        // 标题行
+        const label = document.createElement('div');
+        label.style.cssText = [
+          'flex:1', 'width:100%', 'display:flex', 'align-items:center',
+          'justify-content:center', 'padding:0 10px', 'box-sizing:border-box',
+          'color:#fff', 'font-weight:700', 'font-size:14px',
+          'white-space:nowrap', 'overflow:hidden', 'text-overflow:ellipsis',
+          'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+        ].join(';');
+        label.textContent = title;
+
+        wrap.appendChild(tag);
+        wrap.appendChild(label);
+        rootEl.appendChild(wrap);
+      }
+      shouldUpdate() { return true; }
+    }
+
+    nodeConfigs.push({
+      type: 'RootNode',
       view: RootNodeView,
       model: RootNodeModel
     });
@@ -713,18 +766,17 @@ function ensureRootNode() {
 
     if (!hasRootNode) {
       logicflowLogger.info('未找到根节点，开始创建...');
-      
+
+      const cx = Math.round((container.value?.clientWidth ?? 800) / 2);
+      const cy = Math.round((container.value?.clientHeight ?? 600) / 2);
+
       // 创建根节点
       const rootNode = {
         id: 'node_root',
         type: 'RootNode',
-        x: 400,
-        y: 100,
-        text: {
-          value: props.projectName || '项目根节点',
-          x: 400,
-          y: 100,
-        },
+        x: cx,
+        y: cy,
+        text: { value: '', x: cx, y: cy },
         properties: {
           title: props.projectName || '项目根节点',
           nodeType: 'root',
@@ -786,13 +838,18 @@ function loadWorkflowData(workflowData: WorkflowData) {
   try {
     // 转换数据格式
     const logicFlowData = logicFlowConverter.toLogicFlowData(workflowData);
-    
+
     // 渲染数据
     logicFlowInstance.value.render(logicFlowData);
-    
+
     // 确保有根节点
     ensureRootNode();
-    
+
+    // 居中视图以显示所有节点
+    nextTick(() => {
+      logicFlowInstance.value?.fitView(20);
+    });
+
     console.log('工作流数据加载成功');
   } catch (error) {
     console.error('加载工作流数据失败:', error);

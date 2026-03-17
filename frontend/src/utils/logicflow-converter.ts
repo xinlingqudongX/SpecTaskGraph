@@ -82,11 +82,9 @@ export class LogicFlowDataConverter implements DataConverter {
       y: nodeData.y,
       width,
       height,
-      text: {
-        value: nodeData.title || '',
-        x: nodeData.x,
-        y: nodeData.y,
-      },
+      // 对所有节点清空 text.value，避免 LogicFlow 在节点外渲染浮动 SVG 文字；
+      // 标题由各节点的 HtmlNode setHtml 内部渲染。
+      text: { value: '', x: nodeData.x, y: nodeData.y },
       properties: {
         title: nodeData.title,
         status: nodeData.status,
@@ -261,11 +259,7 @@ export class LogicFlowDataConverter implements DataConverter {
       y: position.y,
       width,
       height,
-      text: {
-        value: title || `${type.toUpperCase()} ${id}`,
-        x: position.x,
-        y: position.y,
-      },
+      text: { value: '', x: position.x, y: position.y },
       properties: {
         title: title || `${type.toUpperCase()} ${id}`,
         status: 'pending' as NodeStatus,

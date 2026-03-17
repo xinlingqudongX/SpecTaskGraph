@@ -24,7 +24,7 @@ export const DEFAULT_WORKFLOW_SETTINGS = {
  */
 export const FILE_PATHS = {
   /** 工作流数据目录 */
-  WORKFLOW_DATA_DIR: './src/data/workflow/',
+  WORKFLOW_DATA_DIR: './',
   /** Schema文件路径 */
   SCHEMA_FILE: './src/schemas/schema.json',
   /** Kiro配置文件路径 */
