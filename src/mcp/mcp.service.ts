@@ -6,6 +6,21 @@ import { NodeService } from '../node/node.service';
 import { WorkflowExportService } from '../node/workflow-export.service';
 import { NodeStatus } from '../node/entities/node-metadata.entity';
 
+/** 统一工具返回格式 */
+interface ToolResult {
+  content: Array<{ type: 'text'; text: string }>;
+  isError?: boolean;
+}
+
+function ok(data: unknown): ToolResult {
+  return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+}
+
+function fail(err: unknown): ToolResult {
+  const msg = err instanceof Error ? err.message : String(err);
+  return { content: [{ type: 'text', text: `错误: ${msg}` }], isError: true };
+}
+
 @Injectable()
 export class McpService {
   constructor(
@@ -15,104 +30,103 @@ export class McpService {
   ) {}
 
   /**
-   * 每次请求创建一个新的 McpServer 实例（无状态模式）。
-   * 工具闭包捕获注入的 Service，保持对数据库的访问能力。
+   * 每次 HTTP 请求创建一个新的 McpServer（无状态模式）。
+   * 使用 `(server as any).tool()` 绕过 MCP SDK 深层泛型导致的 TS2589。
    */
   createServer(): McpServer {
-    const server = new McpServer({
-      name: 'FlowInOne',
-      version: '1.0.0',
-    });
+    const server = new McpServer({ name: 'FlowInOne', version: '1.0.0' });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = server as any;
 
-    // ── 工具：列出所有项目 ───────────────────────────────────────
-    server.tool(
+    // ── list_projects ────────────────────────────────────────────
+    s.tool(
       'list_projects',
       '列出所有项目，返回 id、name、description、updatedAt',
       {},
-      async () => {
+      async (): Promise<ToolResult> => {
         try {
           const projects = await this.projectService.findAll();
-          const result = projects.map((p) => ({
-            id: p.id,
-            name: p.name,
-            description: p.description ?? null,
-            updatedAt: p.updatedAt,
-          }));
-          return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
-        } catch (err: any) {
-          return { content: [{ type: 'text' as const, text: `错误: ${err.message}` }], isError: true };
+          return ok(
+            projects.map((p) => ({
+              id: p.id,
+              name: p.name,
+              description: p.description ?? null,
+              updatedAt: p.updatedAt,
+            })),
+          );
+        } catch (err) {
+          return fail(err);
         }
       },
     );
 
-    // ── 工具：获取项目详情（含工作流图） ────────────────────────
-    server.tool(
+    // ── get_project ──────────────────────────────────────────────
+    s.tool(
       'get_project',
       '根据项目 ID 获取项目完整信息，包含 workflowJson（节点和边）',
       { projectId: z.string().describe('项目 ID') },
-      async ({ projectId }) => {
+      async ({ projectId }: { projectId: string }): Promise<ToolResult> => {
         try {
           const project = await this.projectService.findOne(projectId);
-          return { content: [{ type: 'text' as const, text: JSON.stringify(project, null, 2) }] };
-        } catch (err: any) {
-          return { content: [{ type: 'text' as const, text: `错误: ${err.message}` }], isError: true };
+          return ok(project);
+        } catch (err) {
+          return fail(err);
         }
       },
     );
 
-    // ── 工具：导出工作流（拓扑排序 + 可执行分析） ────────────────
-    server.tool(
+    // ── get_workflow_export ──────────────────────────────────────
+    s.tool(
       'get_workflow_export',
       '导出项目工作流，包含拓扑执行顺序、每个节点的 can_execute 状态，适合 AI 消费',
       { projectId: z.string().describe('项目 ID') },
-      async ({ projectId }) => {
+      async ({ projectId }: { projectId: string }): Promise<ToolResult> => {
         try {
           const data = await this.workflowExportService.exportWorkflow(projectId);
-          return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
-        } catch (err: any) {
-          return { content: [{ type: 'text' as const, text: `错误: ${err.message}` }], isError: true };
+          return ok(data);
+        } catch (err) {
+          return fail(err);
         }
       },
     );
 
-    // ── 工具：更新节点状态 ────────────────────────────────────────
-    server.tool(
+    // ── update_node_status ───────────────────────────────────────
+    s.tool(
       'update_node_status',
-      '更新工作流节点的执行状态，并自动记录执行历史快照',
+      '更新工作流节点的执行状态，自动记录执行历史快照',
       {
         nodeId: z.string().describe('节点 ID'),
         status: z
           .enum(['pending', 'completed', 'failed', 'review_needed'])
-          .describe('新状态：pending（待执行）/ completed（完成）/ failed（失败）/ review_needed（待审查）'),
+          .describe('新状态：pending / completed / failed / review_needed'),
       },
-      async ({ nodeId, status }) => {
+      async ({
+        nodeId,
+        status,
+      }: {
+        nodeId: string;
+        status: string;
+      }): Promise<ToolResult> => {
         try {
           const node = await this.nodeService.updateStatus(nodeId, status as NodeStatus);
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: JSON.stringify({ nodeId: node.nodeId, status: node.status, updatedAt: node.updatedAt }, null, 2),
-              },
-            ],
-          };
-        } catch (err: any) {
-          return { content: [{ type: 'text' as const, text: `错误: ${err.message}` }], isError: true };
+          return ok({ nodeId: node.nodeId, status: node.status, updatedAt: node.updatedAt });
+        } catch (err) {
+          return fail(err);
         }
       },
     );
 
-    // ── 工具：获取节点执行历史 ────────────────────────────────────
-    server.tool(
+    // ── get_node_history ─────────────────────────────────────────
+    s.tool(
       'get_node_history',
       '获取指定节点的执行历史记录（最近 20 条），包含 requirement/prompt 快照和执行结果',
       { nodeId: z.string().describe('节点 ID') },
-      async ({ nodeId }) => {
+      async ({ nodeId }: { nodeId: string }): Promise<ToolResult> => {
         try {
           const history = await this.nodeService.getHistory(nodeId);
-          return { content: [{ type: 'text' as const, text: JSON.stringify(history, null, 2) }] };
-        } catch (err: any) {
-          return { content: [{ type: 'text' as const, text: `错误: ${err.message}` }], isError: true };
+          return ok(history);
+        } catch (err) {
+          return fail(err);
         }
       },
     );
