@@ -11,7 +11,7 @@ FlowInOne is a workflow diagram editor that decomposes business functionality in
 ### Backend (root directory, uses pnpm)
 ```bash
 pnpm install                  # Install all workspace dependencies
-pnpm run start:dev            # NestJS watch mode (port 5000)
+pnpm run start:dev            # NestJS watch mode (port 9000)
 pnpm run start:fastify:dev    # Fastify adapter dev mode
 pnpm run build                # Compile to dist/
 pnpm run format               # Prettier
@@ -29,7 +29,7 @@ pnpm run migration:run
 
 ### Frontend (in `frontend/` directory)
 ```bash
-pnpm run dev      # Vite dev server (port 5173, proxies /api to localhost:5000)
+pnpm run dev      # Vite dev server (port 5173, proxies /api to localhost:9000)
 pnpm run build    # Build to src/public/ (served as static by backend)
 pnpm run test     # Vitest
 pnpm run test:watch
@@ -40,16 +40,16 @@ pnpm run test:watch
 ### Monorepo Structure
 - `src/` — NestJS backend
 - `frontend/` — Vue 3 frontend (separate pnpm workspace)
-- `database.sqlite` — SQLite DB file
 - Frontend build output goes to `src/public/`, served as static files by the backend
 
 ### Backend (`src/`)
 NestJS 11 + Fastify adapter. Key modules:
 
-- **`src/project/`** — CRUD for projects via REST (`/api/v1/project/*`), backed by MikroORM entities in SQLite
-- **`src/collaboration/`** — WebSocket gateway (`ws://localhost:5000/ws`) for real-time multi-user editing; manages rooms, users, and operation logs
+- **`src/project/`** — CRUD for projects via REST (`/api/v1/project/*`), backed by MikroORM entities in PostgreSQL
+- **`src/collaboration/`** — WebSocket gateway (`ws://localhost:9000/ws`) for real-time multi-user editing; manages rooms, users, and operation logs
 - **`src/main.ts`** — Bootstrap: Fastify adapter, WebSocket, Scalar API docs at `/api-reference`
-- **`src/mikro-orm.config.ts`** — SQLite + entity scanning config
+- **`src/mikro-orm.config.ts`** — PostgreSQL (`@mikro-orm/postgresql`) + entity config; reads DB connection from YAML config file
+- **`src/config/`** — YAML-based config loader (`config.loader.ts`); reads `src/config/{NODE_ENV}.yml` (e.g. `development.yml`); validated by Zod schema in `config.schema.ts`
 - **`src/adapter-factory.ts`** — Switches between Express and Fastify adapters
 
 ### Frontend (`frontend/src/`)
@@ -74,18 +74,19 @@ Vue 3 + Vite + LogicFlow 2.x. IDE-style layout: sidebar (file browser) + main ed
 
 ### Communication
 - **REST**: Frontend → `/api/v1/project/*` (proxied through Vite dev server)
-- **WebSocket**: Frontend ↔ `ws://localhost:5000/ws` for real-time collaboration
+- **WebSocket**: Frontend ↔ `ws://localhost:9000/ws` for real-time collaboration
 - **Local files**: Workflow JSON files are read/written directly to the user's local filesystem; backend is not involved in file content storage
 
 ### Data Persistence
-- **Project metadata** (name, timestamps): SQLite via MikroORM (`ProjectEntity`, `ProjectAssetEntity`)
+- **Project metadata** (name, timestamps): PostgreSQL via MikroORM (`ProjectEntity`, `ProjectAsset`, `NodeMetadataEntity`, `NodeExecutionHistoryEntity`)
 - **Workflow content** (nodes, edges): JSON files in the user's local workspace directory
 - **Directory handles**: Stored in IndexedDB for session persistence
+- **Config**: DB connection and app settings read from `src/config/{NODE_ENV}.yml` at startup; never hardcoded
 
 ## Key Conventions
 - All backend API routes are prefixed `/api/v1`
-- Backend port: `5000`; Frontend dev port: `5173`
-- API docs: `http://localhost:5000/api-reference` (Scalar)
+- Backend port: `9000`; Frontend dev port: `5173`
+- API docs: `http://localhost:9000/api-reference` (Scalar)
 - LogicFlow node types: `text`, `image`, `video`, `audio`, `file`, `decision`, `parallel`
 - Frontend services use singleton `getInstance()` pattern — do not use `new` directly
 - Workflow files are `.json`; backup files use `.bak` extension

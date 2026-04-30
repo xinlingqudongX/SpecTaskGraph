@@ -45,7 +45,24 @@ describe('LogicFlowDataConverter — AI field round-trip (DATA-05)', () => {
     expect(roundTripped.config.prompt).toBe('AI prompt here');
   });
 
+  it('agentRoleId survives round-trip', () => {
+    const nodeWithAgentRole: NodeData = {
+      ...baseNode,
+      config: {
+        ...baseNode.config,
+        agentRoleId: '11111111-1111-4111-8111-111111111111',
+      },
+    };
+    const lfData = logicFlowConverter.toLogicFlowData({
+      elements: [{ group: 'nodes', data: nodeWithAgentRole, position: { x: 100, y: 200 } }],
+    });
+    const back = logicFlowConverter.fromLogicFlowData(lfData);
+    const roundTripped = back.elements[0].data as NodeData;
+    expect(roundTripped.config.agentRoleId).toBe('11111111-1111-4111-8111-111111111111');
+  });
+
   it('attributes array survives round-trip without corruption', () => {
+
     const nodeWithAttrs: NodeData = {
       ...baseNode,
       config: { ...baseNode.config, attributes: [{ key: 'env', value: 'prod' }] },

@@ -15,7 +15,12 @@ export type NodeType = 'start' | 'task' | 'decision' | 'parallel' | 'end';
 /**
  * 节点状态
  */
-export type NodeStatus = 'pending' | 'completed' | 'failed' | 'review_needed';
+export type NodeStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'failed'
+  | 'review_needed';
 
 /**
  * 边类型
@@ -96,6 +101,14 @@ export interface Edge {
   type: EdgeType;
   condition?: string;
   label?: string;
+  // 视觉样式，实线/虚线/点线，回显时还原
+  style?: {
+    strokeStyle?: 'solid' | 'dashed' | 'dotted';
+  };
+  // Dagre 整理后的折线路径点，保存后可精确回显边的走向
+  pointsList?: Array<{ x: number; y: number }>;
+  startPoint?: { x: number; y: number };
+  endPoint?: { x: number; y: number };
 }
 
 /**

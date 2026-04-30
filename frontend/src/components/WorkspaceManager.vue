@@ -1,451 +1,446 @@
 <template>
-  <div class="workspace-manager">
-    <div class="workspace-header">
-      <h2>工作区管理</h2>
-      <button @click="selectWorkspace" class="btn-primary">
-        {{ currentWorkspace ? '切换工作区' : '选择工作区' }}
-      </button>
-    </div>
-
-    <div v-if="currentWorkspace" class="workspace-info">
-      <div class="info-item">
-        <span class="label">当前工作区:</span>
-        <span class="value">{{ currentWorkspace.path }}</span>
+  <div class="workspace-selector">
+    <!-- 已选择工作区 -->
+    <div v-if="currentWorkspace" class="workspace-active">
+      <div class="workspace-path-row">
+        <el-icon class="folder-icon"><Folder /></el-icon>
+        <span class="workspace-name" :title="currentWorkspace.path">{{ currentWorkspace.path }}</span>
+        <el-tooltip content="切换工作区" placement="right">
+          <el-button link size="small" class="change-btn" @click="selectWorkspace">
+            <el-icon><Switch /></el-icon>
+          </el-button>
+        </el-tooltip>
       </div>
-      <div class="info-item">
-        <span class="label">项目ID:</span>
-        <span class="value">{{ currentWorkspace.id }}</span>
+      <div class="permission-badge" :class="permissionClass">
+        {{ permissionText }}
       </div>
-      <div class="info-item">
-        <span class="label">权限状态:</span>
-        <span class="value" :class="permissionClass">
-          {{ permissionText }}
-        </span>
-      </div>
-      <div class="info-item">
-        <span class="label">最后访问:</span>
-        <span class="value">{{ formatDate(currentWorkspace.lastAccessed) }}</span>
+      <!-- 降级模式提示 -->
+      <div v-if="currentWorkspace.isFallback" class="fallback-notice">
+        只读模式：修改将保存到服务器
       </div>
     </div>
 
-    <div v-else class="no-workspace">
-      <p>尚未选择工作区</p>
-      <p class="hint">请点击上方按钮选择项目目录</p>
-    </div>
+    <!-- 未选择工作区 -->
+    <div v-else class="workspace-empty">
+      <el-icon :size="32" class="empty-icon"><FolderOpened /></el-icon>
+      <p class="empty-text">未选择本地工作区</p>
+      <el-button type="primary" size="small" @click="selectWorkspace">
+        <el-icon><FolderOpened /></el-icon>
+        选择目录
+      </el-button>
 
-    <div v-if="error" class="error-message">
-      {{ error }}
-    </div>
+      <!-- 当前环境不支持 FSAPI 时的说明 -->
+      <p v-if="!fsapiSupported" class="fallback-tip">
+        当前访问地址非 localhost/HTTPS，将以只读方式读取目录中的工作流文件
+      </p>
 
-    <div v-if="recentWorkspaces.length > 0" class="recent-workspaces">
-      <h3>最近使用的工作区</h3>
-      <ul>
-        <li v-for="workspace in recentWorkspaces" :key="workspace.id" class="workspace-item">
-          <div class="workspace-item-info">
-            <span class="workspace-name">{{ workspace.path }}</span>
-            <span class="workspace-date">{{ formatDate(workspace.lastAccessed) }}</span>
+      <!-- 最近使用的工作区（仅 FSAPI 模式支持持久化） -->
+      <div v-if="fsapiSupported && recentWorkspaces.length" class="recent-list">
+        <p class="recent-label">最近使用</p>
+        <div
+          v-for="ws in recentWorkspaces"
+          :key="ws.id"
+          class="recent-item"
+          @click="loadWorkspace(ws.id)"
+        >
+          <el-icon class="recent-folder-icon"><Folder /></el-icon>
+          <div class="recent-info">
+            <span class="recent-name">{{ ws.path }}</span>
+            <span class="recent-date">{{ formatDate(ws.lastAccessed) }}</span>
           </div>
-          <div class="workspace-actions">
-            <button @click="loadWorkspace(workspace.id)" class="btn-small">打开</button>
-            <button @click="removeWorkspace(workspace.id)" class="btn-small btn-danger">删除</button>
-          </div>
-        </li>
-      </ul>
+          <el-button link size="small" class="recent-remove" @click.stop="removeWorkspace(ws.id)">
+            <el-icon><Close /></el-icon>
+          </el-button>
+        </div>
+      </div>
     </div>
+
+    <!-- 隐藏的目录选择 input（降级模式用） -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      style="display: none"
+      webkitdirectory
+      multiple
+      @change="handleFileInputChange"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { ElMessage } from 'element-plus';
+import { Folder, FolderOpened, Switch, Close } from '@element-plus/icons-vue';
 import { FileSystemService } from '../services/filesystem.service';
 import type { PermissionState } from '../types/workflow.types';
 
-interface WorkspaceInfo {
+export interface FallbackFileInfo {
+  name: string;
+  content: string;
+  size: number;
+  lastModified: Date;
+}
+
+export interface WorkspaceInfo {
   id: string;
   path: string;
   lastAccessed: Date;
   permissions: PermissionState;
-  handle: FileSystemDirectoryHandle;
+  handle: FileSystemDirectoryHandle | null;
+  isFallback?: boolean;
+  fallbackFiles?: FallbackFileInfo[];
 }
 
-// 定义事件
-interface Emits {
+const emit = defineEmits<{
   (e: 'workspace-selected', workspace: WorkspaceInfo): void;
   (e: 'workspace-closed'): void;
-}
-
-const emit = defineEmits<Emits>();
+}>();
 
 const fileSystemService = FileSystemService.getInstance();
 
+const fsapiSupported = FileSystemService.isSupported();
+const fileInputRef = ref<HTMLInputElement | null>(null);
+
 const currentWorkspace = ref<WorkspaceInfo | null>(null);
 const recentWorkspaces = ref<WorkspaceInfo[]>([]);
-const error = ref<string>('');
 
 const permissionClass = computed(() => {
   if (!currentWorkspace.value) return '';
-  switch (currentWorkspace.value.permissions) {
-    case 'granted':
-      return 'permission-granted';
-    case 'denied':
-      return 'permission-denied';
-    case 'prompt':
-      return 'permission-prompt';
-    default:
-      return '';
-  }
+  if (currentWorkspace.value.isFallback) return 'permission-prompt';
+  return {
+    granted: 'permission-granted',
+    denied: 'permission-denied',
+    prompt: 'permission-prompt',
+  }[currentWorkspace.value.permissions] ?? '';
 });
 
 const permissionText = computed(() => {
   if (!currentWorkspace.value) return '';
-  switch (currentWorkspace.value.permissions) {
-    case 'granted':
-      return '已授权';
-    case 'denied':
-      return '已拒绝';
-    case 'prompt':
-      return '待授权';
-    default:
-      return '未知';
-  }
+  if (currentWorkspace.value.isFallback) return '只读';
+  return { granted: '已授权', denied: '已拒绝', prompt: '待授权' }[currentWorkspace.value.permissions] ?? '未知';
 });
 
-/**
- * 选择工作区
- */
 async function selectWorkspace() {
-  try {
-    error.value = '';
-    console.log('开始选择工作区...');
-    
-    // 检查浏览器支持
-    if (!FileSystemService.isSupported()) {
-      error.value = '您的浏览器不支持文件系统访问功能，请使用最新版本的Chrome、Edge或其他支持的浏览器';
-      console.error('浏览器不支持File System Access API');
-      return;
-    }
+  error.value = '';
+  if (fsapiSupported) {
+    await selectWithFSAPI();
+  } else {
+    // 当前环境不支持 FSAPI（非 localhost / 非 HTTPS），降级到 input[webkitdirectory]
+    fileInputRef.value?.click();
+  }
+}
 
-    console.log('浏览器支持File System Access API，请求目录访问...');
-    
-    // 请求目录访问
+async function selectWithFSAPI() {
+  try {
     const handle = await fileSystemService.requestDirectoryAccess();
-    console.log('目录访问成功，目录名称:', handle.name);
-    
-    // 生成项目ID（使用目录名称）
     const projectId = handle.name.replace(/[^a-zA-Z0-9-_]/g, '-');
-    console.log('生成项目ID:', projectId);
-    
-    // 保存目录句柄
+
     await fileSystemService.saveDirectoryHandle(projectId, handle, handle.name);
-    console.log('目录句柄保存成功');
-    
-    // 检查权限
     const permission = await fileSystemService.checkPermission(handle);
-    console.log('权限状态:', permission);
-    
-    // 更新当前工作区
+
     currentWorkspace.value = {
       id: projectId,
       path: handle.name,
       lastAccessed: new Date(),
       permissions: permission,
-      handle
+      handle,
     };
-    
-    console.log('当前工作区已更新:', currentWorkspace.value);
-    
-    // 刷新最近使用列表
+
     await loadRecentWorkspaces();
-    
-    // 触发事件通知父组件
-    console.log('触发workspace-selected事件');
     emit('workspace-selected', currentWorkspace.value);
-    
-    console.info('工作区选择成功:', projectId);
   } catch (err: any) {
-    error.value = err.message || '选择工作区失败';
-    console.error('选择工作区失败:', err);
+    // AbortError 表示用户主动取消，不提示错误
+    if (err?.name !== 'AbortError') {
+      ElMessage.error(err.message || '选择工作区失败');
+    }
   }
 }
 
-/**
- * 加载工作区
- */
+// 降级模式：读取 input[webkitdirectory] 选中的目录中的工作流 JSON 文件
+async function handleFileInputChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (!input.files?.length) return;
+
+  const allFiles = Array.from(input.files);
+
+  // 工作流文件位于 src/data/workflow/*.json，过滤出符合路径的文件
+  const workflowFiles = allFiles.filter((f) => {
+    const rel = (f as any).webkitRelativePath as string || f.name;
+    return (
+      rel.includes('/src/data/workflow/') &&
+      f.name.endsWith('.json') &&
+      !f.name.endsWith('.bak') &&
+      !f.name.endsWith('.tmp')
+    );
+  });
+
+  // 若找不到规范路径，退而求其次：取顶层 .json 文件
+  const targetFiles = workflowFiles.length > 0 ? workflowFiles : allFiles.filter(
+    (f) => f.name.endsWith('.json') && !f.name.endsWith('.bak') && !f.name.endsWith('.tmp')
+  );
+
+  if (targetFiles.length === 0) {
+    ElMessage.warning('所选目录中没有找到工作流 JSON 文件（应位于 src/data/workflow/）');
+    input.value = '';
+    return;
+  }
+
+  const fallbackFiles: FallbackFileInfo[] = await Promise.all(
+    targetFiles.map(async (f) => ({
+      name: f.name,
+      content: await f.text(),
+      size: f.size,
+      lastModified: new Date(f.lastModified),
+    }))
+  );
+
+  // 取目录名作为工作区名称（webkitRelativePath 第一段）
+  const firstRel = (targetFiles[0] as any).webkitRelativePath as string || '';
+  const dirName = firstRel.split('/')[0] || targetFiles[0].name;
+  const workspaceId = dirName.replace(/[^a-zA-Z0-9-_]/g, '-');
+
+  currentWorkspace.value = {
+    id: workspaceId,
+    path: dirName,
+    lastAccessed: new Date(),
+    permissions: 'granted',
+    handle: null,
+    isFallback: true,
+    fallbackFiles,
+  };
+
+  emit('workspace-selected', currentWorkspace.value);
+  // 重置 input，允许重复选择同一目录
+  input.value = '';
+}
+
 async function loadWorkspace(projectId: string) {
   try {
-    error.value = '';
-    
     const handle = await fileSystemService.loadDirectoryHandle(projectId);
     if (!handle) {
-      error.value = '无法加载工作区，请重新选择';
+      ElMessage.error('工作区记录已失效，请重新选择');
       return;
     }
-    
-    // 检查权限
+
     let permission = await fileSystemService.checkPermission(handle);
     if (permission !== 'granted') {
       permission = await fileSystemService.requestPermission(handle);
       if (permission !== 'granted') {
-        error.value = '文件访问权限不足';
+        ElMessage.error('文件访问权限不足，请重新授权');
         return;
       }
     }
-    
+
     currentWorkspace.value = {
       id: projectId,
       path: handle.name,
       lastAccessed: new Date(),
       permissions: permission,
-      handle
+      handle,
     };
-    
-    // 触发事件通知父组件
+
     emit('workspace-selected', currentWorkspace.value);
-    
-    console.info('工作区加载成功:', projectId);
   } catch (err: any) {
-    error.value = err.message || '加载工作区失败';
-    console.error('加载工作区失败:', err);
+    ElMessage.error(err.message || '加载工作区失败');
   }
 }
 
-/**
- * 移除工作区
- */
 async function removeWorkspace(projectId: string) {
   try {
-    if (confirm('确定要从列表中移除此工作区吗？')) {
-      await fileSystemService.revokeDirectoryAccess(projectId);
-      
-      if (currentWorkspace.value?.id === projectId) {
-        currentWorkspace.value = null;
-        // 触发工作区关闭事件
-        emit('workspace-closed');
-      }
-      
-      await loadRecentWorkspaces();
-      console.info('工作区已移除:', projectId);
+    await fileSystemService.revokeDirectoryAccess(projectId);
+    if (currentWorkspace.value?.id === projectId) {
+      currentWorkspace.value = null;
+      emit('workspace-closed');
     }
+    await loadRecentWorkspaces();
   } catch (err: any) {
-    error.value = err.message || '移除工作区失败';
-    console.error('移除工作区失败:', err);
+    ElMessage.error(err.message || '移除工作区失败');
   }
 }
 
-/**
- * 加载最近使用的工作区
- */
 async function loadRecentWorkspaces() {
   try {
     const handles = await fileSystemService.listDirectoryHandles();
     recentWorkspaces.value = handles
       .sort((a, b) => b.lastAccessed.getTime() - a.lastAccessed.getTime())
       .slice(0, 5);
-  } catch (err) {
-    console.error('加载最近工作区失败:', err);
+  } catch {
+    // 加载失败时静默处理
   }
 }
 
-/**
- * 格式化日期
- */
 function formatDate(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
+  const diff = Date.now() - date.getTime();
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
-  
+
   if (minutes < 1) return '刚刚';
   if (minutes < 60) return `${minutes}分钟前`;
   if (hours < 24) return `${hours}小时前`;
   if (days < 7) return `${days}天前`;
-  
   return date.toLocaleDateString('zh-CN');
 }
 
-// 组件挂载时加载最近工作区
-onMounted(() => {
-  loadRecentWorkspaces();
-});
+onMounted(loadRecentWorkspaces);
 </script>
 
 <style scoped>
-.workspace-manager {
-  padding: 20px;
-  max-width: 800px;
-  margin: 0 auto;
+.workspace-selector {
+  padding: 12px;
+  color: #c0cfe0;
 }
 
-.workspace-header {
+/* 已选中状态 */
+.workspace-active {
+  background: rgba(64, 158, 255, 0.08);
+  border: 1px solid rgba(64, 158, 255, 0.2);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.workspace-path-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: 6px;
 }
 
-.workspace-header h2 {
+.folder-icon {
+  color: #e6a23c;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.workspace-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: #e8eaf0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.change-btn {
+  color: #5a6a82 !important;
+  flex-shrink: 0;
+}
+
+.change-btn:hover {
+  color: #409eff !important;
+}
+
+.permission-badge {
+  margin-top: 4px;
+  font-size: 11px;
+  padding-left: 20px;
+}
+
+.permission-granted { color: #67c23a; }
+.permission-denied  { color: #f56c6c; }
+.permission-prompt  { color: #e6a23c; }
+
+/* 未选中状态 */
+.workspace-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 8px;
+  gap: 10px;
+}
+
+.empty-icon {
+  color: #3a4a60;
+}
+
+.empty-text {
   margin: 0;
-  font-size: 24px;
-  color: #333;
+  font-size: 12px;
+  color: #5a6a82;
 }
 
-.btn-primary {
-  padding: 10px 20px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
+/* 最近工作区列表 */
+.recent-list {
+  width: 100%;
+  margin-top: 4px;
+  border-top: 1px solid #2d3148;
+  padding-top: 10px;
+}
+
+.recent-label {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #3a4a60;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
+  transition: background 0.15s;
 }
 
-.btn-primary:hover {
-  background-color: #45a049;
+.recent-item:hover {
+  background: rgba(255, 255, 255, 0.05);
 }
 
-.workspace-info {
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
+.recent-folder-icon {
+  color: #3a4a60;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 
-.info-item {
-  display: flex;
-  margin-bottom: 12px;
-}
-
-.info-item:last-child {
-  margin-bottom: 0;
-}
-
-.info-item .label {
-  font-weight: bold;
-  color: #666;
-  min-width: 100px;
-}
-
-.info-item .value {
-  color: #333;
-}
-
-.permission-granted {
-  color: #4CAF50;
-  font-weight: bold;
-}
-
-.permission-denied {
-  color: #f44336;
-  font-weight: bold;
-}
-
-.permission-prompt {
-  color: #ff9800;
-  font-weight: bold;
-}
-
-.no-workspace {
-  text-align: center;
-  padding: 40px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  color: #666;
-}
-
-.no-workspace p {
-  margin: 10px 0;
-}
-
-.no-workspace .hint {
-  font-size: 14px;
-  color: #999;
-}
-
-.error-message {
-  background-color: #ffebee;
-  color: #c62828;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-  border-left: 4px solid #c62828;
-}
-
-.recent-workspaces {
-  margin-top: 30px;
-}
-
-.recent-workspaces h3 {
-  font-size: 18px;
-  color: #333;
-  margin-bottom: 15px;
-}
-
-.recent-workspaces ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.workspace-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px;
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  transition: background-color 0.2s;
-}
-
-.workspace-item:hover {
-  background-color: #f5f5f5;
-}
-
-.workspace-item-info {
+.recent-info {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.workspace-name {
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.workspace-date {
+.recent-name {
   font-size: 12px;
-  color: #999;
+  color: #8b9cb3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.workspace-actions {
-  display: flex;
-  gap: 8px;
+.recent-date {
+  font-size: 10px;
+  color: #3a4a60;
 }
 
-.btn-small {
-  padding: 6px 12px;
-  font-size: 12px;
-  border: none;
+.recent-remove {
+  color: #3a4a60 !important;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.recent-item:hover .recent-remove {
+  opacity: 1;
+}
+
+.fallback-notice {
+  margin-top: 4px;
+  padding-left: 20px;
+  font-size: 11px;
+  color: #e6a23c;
+}
+
+.fallback-tip {
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #e6a23c;
+  background: rgba(230, 162, 60, 0.08);
   border-radius: 4px;
-  cursor: pointer;
-  background-color: #2196F3;
-  color: white;
-  transition: background-color 0.3s;
-}
-
-.btn-small:hover {
-  background-color: #1976D2;
-}
-
-.btn-danger {
-  background-color: #f44336;
-}
-
-.btn-danger:hover {
-  background-color: #d32f2f;
+  line-height: 1.5;
+  text-align: center;
 }
 </style>

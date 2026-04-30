@@ -1,13 +1,11 @@
 import { Controller, Post, Get, Param, Body } from '@nestjs/common';
 import { NodeService } from './node.service';
 import { SyncWorkflowDto } from './dto/sync-workflow.dto';
-import { WorkflowExportService } from './workflow-export.service';
 
 @Controller('workflow')
 export class WorkflowController {
   constructor(
     private readonly nodeService: NodeService,
-    private readonly workflowExportService: WorkflowExportService,
   ) {}
 
   @Post(':projectId/sync')
@@ -15,12 +13,20 @@ export class WorkflowController {
     @Param('projectId') projectId: string,
     @Body() dto: SyncWorkflowDto,
   ) {
-    await this.nodeService.sync(projectId, dto.nodes);
-    return { synced: true };
-  }
+    const validNodes = dto.nodes.filter(
+      (node) =>
+        node.nodeId === 'node_root' ||
+        (typeof node.parentNodeId === 'string' && node.parentNodeId.trim().length > 0),
+    );
+    const removedNodeIds = dto.nodes
+      .filter((node) => !validNodes.some((validNode) => validNode.nodeId === node.nodeId))
+      .map((node) => node.nodeId);
 
-  @Get(':projectId/export')
-  async export(@Param('projectId') projectId: string) {
-    return this.workflowExportService.exportWorkflow(projectId);
+    await this.nodeService.sync(projectId, validNodes, { replaceAll: true });
+    return {
+      synced: true,
+      nodeCount: validNodes.length,
+      removedNodeIds,
+    };
   }
 }

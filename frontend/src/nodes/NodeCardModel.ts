@@ -1,16 +1,20 @@
 /**
  * NodeCardModel — Wave 1 实现
  *
- * CardNodeModel 提供节点卡片的高度计算逻辑：
- * - expanded=false → height=80（折叠态）
- * - expanded=true  → height=EXPANDED_HEIGHT_BASE + attrCount*36（展开态）
+ * CardNodeModel 提供节点卡片的高度计算逻辑。
+ * 当前业务约束下自定义节点始终保持展开态，不再提供折叠视图。
  *
  * 该类实现了与 LogicFlow HtmlNodeModel 兼容的接口，可直接在测试中实例化，
  * 也可在 logicflow.config.ts 中通过继承 HtmlNodeModel 的包装类使用。
  */
 
 export const COLLAPSED_HEIGHT = 80;
-export const EXPANDED_HEIGHT_BASE = 300;
+export const EXPANDED_HEIGHT_BASE = 420;
+export const ATTRIBUTE_ROW_HEIGHT = 44;
+export const ATTRIBUTE_SECTION_EXTRA_HEIGHT = 72;
+export const EXECUTION_HEADER_HEIGHT = 38;
+export const EXECUTION_SHELL_WIDTH = 500;
+export const EXECUTION_SHELL_COLLAPSED_WIDTH = 300;
 
 /**
  * CardNodeModel：节点卡片数据模型。
@@ -37,17 +41,25 @@ export class CardNodeModel {
   }
 
   /**
-   * 根据 properties.expanded 和 properties.attributes 计算节点高度。
-   * LogicFlow 在 properties 变化时自动调用此方法。
+   * 自定义节点统一按展开态计算高度。
+   * 这里强制写回 expanded=true，避免旧数据或远端同步把节点带回收起态。
    */
   setAttributes(): void {
-    this.width = 280;
-    if (this.properties.expanded) {
-      const attrCount = (this.properties.attributes ?? []).length;
-      this.height = EXPANDED_HEIGHT_BASE + attrCount * 36;
-    } else {
-      this.height = COLLAPSED_HEIGHT;
-    }
+    this.properties.expanded = true;
+    const attrCount = (this.properties.attributes ?? []).length;
+    const baseHeight =
+      EXPANDED_HEIGHT_BASE +
+      ATTRIBUTE_SECTION_EXTRA_HEIGHT +
+      attrCount * ATTRIBUTE_ROW_HEIGHT;
+    const isInProgress = this.properties.status === 'in_progress';
+    const panelCollapsed = this.properties.executorPanelCollapsed !== false;
+
+    this.width = isInProgress
+      ? panelCollapsed
+        ? EXECUTION_SHELL_COLLAPSED_WIDTH
+        : EXECUTION_SHELL_WIDTH
+      : 280;
+    this.height = isInProgress ? baseHeight + EXECUTION_HEADER_HEIGHT : baseHeight;
   }
 
   /**

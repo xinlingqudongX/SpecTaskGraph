@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { RoomManagerService } from './room-manager.service';
 import { UserManagerService } from './user-manager.service';
 import { COLLABORATION_CONFIG } from './types/collaboration.types';
@@ -54,10 +59,15 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
   handleConnection(client: any, request: any): boolean {
     try {
       const clientIP = this.getClientIP(request);
-      
+
       // 检查总连接数限制
-      if (this.server && this.getConnectedClientsCount() >= this.maxTotalConnections) {
-        this.logger.warn(`服务器连接数已达上限 (${this.maxTotalConnections})，拒绝新连接: ${this.getClientId(client)}`);
+      if (
+        this.server &&
+        this.getConnectedClientsCount() >= this.maxTotalConnections
+      ) {
+        this.logger.warn(
+          `服务器连接数已达上限 (${this.maxTotalConnections})，拒绝新连接: ${this.getClientId(client)}`,
+        );
         this.sendErrorMessage(client, {
           message: '服务器连接数已满，请稍后重试',
           code: 'SERVER_FULL',
@@ -69,7 +79,9 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
       // 检查单IP连接数限制
       const currentConnections = this.connectionLimits.get(clientIP) || 0;
       if (currentConnections >= this.maxConnectionsPerIP) {
-        this.logger.warn(`IP ${clientIP} 连接数已达上限 (${this.maxConnectionsPerIP})，拒绝新连接: ${this.getClientId(client)}`);
+        this.logger.warn(
+          `IP ${clientIP} 连接数已达上限 (${this.maxConnectionsPerIP})，拒绝新连接: ${this.getClientId(client)}`,
+        );
         this.sendErrorMessage(client, {
           message: '单个IP连接数已达上限',
           code: 'IP_LIMIT_EXCEEDED',
@@ -92,12 +104,11 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.log(
         `新连接建立: ${this.getClientId(client)} (IP: ${clientIP}), ` +
-        `当前总连接数: ${this.getConnectedClientsCount()}`
+          `当前总连接数: ${this.getConnectedClientsCount()}`,
       );
 
       return true;
-
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`处理新连接失败: ${error.message}`, error.stack);
       client.close();
       return false;
@@ -111,7 +122,9 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
     try {
       const clientIP = (client as any).clientIP;
       const connectedAt = (client as any).connectedAt;
-      const sessionDuration = connectedAt ? Date.now() - connectedAt.getTime() : 0;
+      const sessionDuration = connectedAt
+        ? Date.now() - connectedAt.getTime()
+        : 0;
 
       // 更新连接计数
       if (clientIP) {
@@ -130,7 +143,7 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
         const rooms = this.roomManager.getUserRooms(user.userId);
         for (const projectId of rooms) {
           this.roomManager.removeUserFromRoom(projectId, user.userId);
-          
+
           // 通知房间内其他用户
           if (this.server) {
             this.broadcastToRoom(projectId, {
@@ -154,11 +167,10 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
 
       this.logger.log(
         `连接断开: ${this.getClientId(client)} (IP: ${clientIP}), ` +
-        `会话时长: ${Math.round(sessionDuration / 1000)}秒, ` +
-        `剩余连接数: ${this.getConnectedClientsCount()}`
+          `会话时长: ${Math.round(sessionDuration / 1000)}秒, ` +
+          `剩余连接数: ${this.getConnectedClientsCount()}`,
       );
-
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`处理连接断开失败: ${error.message}`, error.stack);
     }
   }
@@ -187,8 +199,7 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
           userId,
         },
       });
-
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(`处理心跳失败: ${error.message}`, error.stack);
     }
   }
@@ -201,7 +212,9 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
       this.checkHeartbeats();
     }, COLLABORATION_CONFIG.HEARTBEAT_INTERVAL);
 
-    this.logger.log(`心跳监控已启动，间隔: ${COLLABORATION_CONFIG.HEARTBEAT_INTERVAL}ms`);
+    this.logger.log(
+      `心跳监控已启动，间隔: ${COLLABORATION_CONFIG.HEARTBEAT_INTERVAL}ms`,
+    );
   }
 
   /**
@@ -228,8 +241,11 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
     if (this.server.clients) {
       this.server.clients.forEach((client: any) => {
         const lastHeartbeat = (client as any).lastHeartbeat;
-        
-        if (!lastHeartbeat || (now - lastHeartbeat.getTime()) > timeoutThreshold) {
+
+        if (
+          !lastHeartbeat ||
+          now - lastHeartbeat.getTime() > timeoutThreshold
+        ) {
           zombieClients.push(client);
         }
       });
@@ -258,7 +274,9 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
       this.performCleanup();
     }, COLLABORATION_CONFIG.CLEANUP_INTERVAL);
 
-    this.logger.log(`清理任务已启动，间隔: ${COLLABORATION_CONFIG.CLEANUP_INTERVAL}ms`);
+    this.logger.log(
+      `清理任务已启动，间隔: ${COLLABORATION_CONFIG.CLEANUP_INTERVAL}ms`,
+    );
   }
 
   /**
@@ -280,18 +298,21 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
       this.userManager.cleanupDisconnectedUsers();
 
       // 清理不活跃的用户
-      this.userManager.cleanupInactiveUsers(COLLABORATION_CONFIG.INACTIVE_USER_TIMEOUT);
+      this.userManager.cleanupInactiveUsers(
+        COLLABORATION_CONFIG.INACTIVE_USER_TIMEOUT,
+      );
 
       // 清理不活跃的房间
-      this.roomManager.cleanupInactiveRooms(COLLABORATION_CONFIG.INACTIVE_ROOM_TIMEOUT);
+      this.roomManager.cleanupInactiveRooms(
+        COLLABORATION_CONFIG.INACTIVE_ROOM_TIMEOUT,
+      );
 
       // 清理过期的心跳记录
       this.cleanupExpiredHeartbeats();
 
       // 清理连接限制记录
       this.cleanupConnectionLimits();
-
-    } catch (error) {
+    } catch (error:any) {
       this.logger.error(`清理任务执行失败: ${error.message}`, error.stack);
     }
   }
@@ -304,7 +325,10 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
     const expiredUsers: string[] = [];
 
     for (const [userId, lastHeartbeat] of this.userHeartbeats.entries()) {
-      if (now - lastHeartbeat.getTime() > COLLABORATION_CONFIG.INACTIVE_USER_TIMEOUT) {
+      if (
+        now - lastHeartbeat.getTime() >
+        COLLABORATION_CONFIG.INACTIVE_USER_TIMEOUT
+      ) {
         expiredUsers.push(userId);
       }
     }
@@ -325,7 +349,7 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
     if (!this.server) return;
 
     const activeIPs = new Set<string>();
-    
+
     // 收集当前活跃的IP地址
     if (this.server.clients) {
       this.server.clients.forEach((client: any) => {
@@ -349,7 +373,9 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (inactiveIPs.length > 0) {
-      this.logger.debug(`清理了 ${inactiveIPs.length} 个不活跃IP的连接限制记录`);
+      this.logger.debug(
+        `清理了 ${inactiveIPs.length} 个不活跃IP的连接限制记录`,
+      );
     }
   }
 
@@ -358,14 +384,17 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
    */
   private setupConnectionTimeout(client: any) {
     // 设置连接空闲超时（30分钟）
-    const timeout = setTimeout(() => {
-      this.logger.warn(`连接空闲超时，断开连接: ${this.getClientId(client)}`);
-      this.sendErrorMessage(client, {
-        message: '连接空闲超时',
-        code: 'IDLE_TIMEOUT',
-      });
-      client.close();
-    }, 30 * 60 * 1000); // 30分钟
+    const timeout = setTimeout(
+      () => {
+        this.logger.warn(`连接空闲超时，断开连接: ${this.getClientId(client)}`);
+        this.sendErrorMessage(client, {
+          message: '连接空闲超时',
+          code: 'IDLE_TIMEOUT',
+        });
+        client.close();
+      },
+      30 * 60 * 1000,
+    ); // 30分钟
 
     // 在连接断开时清理超时
     client.on('close', () => {
@@ -379,15 +408,15 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
   private getClientIP(request: any): string {
     const forwarded = request.headers['x-forwarded-for'];
     const realIP = request.headers['x-real-ip'];
-    
+
     if (typeof forwarded === 'string') {
       return forwarded.split(',')[0].trim();
     }
-    
+
     if (typeof realIP === 'string') {
       return realIP;
     }
-    
+
     return request.socket?.remoteAddress || 'unknown';
   }
 
@@ -396,14 +425,17 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
    */
   forceDisconnectUser(userId: string, reason: string = '管理员操作') {
     const user = this.userManager.getUser(userId);
-    if (user && user.client.readyState === 1) { // 1 = OPEN
-      this.logger.log(`强制断开用户连接: ${user.displayName} (${userId}) - ${reason}`);
-      
+    if (user && user.client.readyState === 1) {
+      // 1 = OPEN
+      this.logger.log(
+        `强制断开用户连接: ${user.displayName} (${userId}) - ${reason}`,
+      );
+
       this.sendErrorMessage(user.client, {
         message: `连接被断开: ${reason}`,
         code: 'FORCE_DISCONNECT',
       });
-      
+
       user.client.close();
       return true;
     }
@@ -425,7 +457,10 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
       totalRooms,
       maxConnectionsPerIP: this.maxConnectionsPerIP,
       maxTotalConnections: this.maxTotalConnections,
-      ipConnections: ipConnections.map(([ip, count]) => ({ ip, connections: count })),
+      ipConnections: ipConnections.map(([ip, count]) => ({
+        ip,
+        connections: count,
+      })),
       heartbeatInterval: COLLABORATION_CONFIG.HEARTBEAT_INTERVAL,
       cleanupInterval: COLLABORATION_CONFIG.CLEANUP_INTERVAL,
     };
@@ -437,7 +472,7 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
   getHealthStatus() {
     const stats = this.getConnectionStats();
     const memoryUsage = (process as any)?.memoryUsage?.() || {};
-    
+
     let status: 'healthy' | 'warning' | 'critical' = 'healthy';
     const issues: string[] = [];
 
@@ -448,7 +483,8 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
     }
 
     // 检查内存使用
-    if (memoryUsage.heapUsed > 500 * 1024 * 1024) { // 500MB
+    if (memoryUsage.heapUsed > 500 * 1024 * 1024) {
+      // 500MB
       status = 'warning';
       issues.push('内存使用较高');
     }
@@ -475,18 +511,23 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
     if (maxPerIP > 0 && maxPerIP <= 100) {
       this.maxConnectionsPerIP = maxPerIP;
     }
-    
+
     if (maxTotal > 0 && maxTotal <= 10000) {
       this.maxTotalConnections = maxTotal;
     }
 
-    this.logger.log(`连接限制已更新: 单IP最大 ${this.maxConnectionsPerIP}, 总计最大 ${this.maxTotalConnections}`);
+    this.logger.log(
+      `连接限制已更新: 单IP最大 ${this.maxConnectionsPerIP}, 总计最大 ${this.maxTotalConnections}`,
+    );
   }
 
   /**
    * 广播服务器消息
    */
-  broadcastServerMessage(message: string, level: 'info' | 'warning' | 'error' = 'info') {
+  broadcastServerMessage(
+    message: string,
+    level: 'info' | 'warning' | 'error' = 'info',
+  ) {
     if (!this.server) return;
 
     const serverMessage = {
@@ -503,7 +544,8 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
 
     if (this.server.clients) {
       this.server.clients.forEach((client: any) => {
-        if (client.readyState === 1) { // 1 = OPEN
+        if (client.readyState === 1) {
+          // 1 = OPEN
           this.sendMessage(client, serverMessage);
         }
       });
@@ -522,7 +564,10 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
   /**
    * 发送错误消息
    */
-  sendErrorMessage(client: any, error: { message: string; code: string }): void {
+  sendErrorMessage(
+    client: any,
+    error: { message: string; code: string },
+  ): void {
     this.sendMessage(client, {
       type: 'error',
       projectId: '',
@@ -551,10 +596,11 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
    */
   private sendMessage(client: any, message: any): void {
     try {
-      if (client.readyState === 1) { // 1 = OPEN
+      if (client.readyState === 1) {
+        // 1 = OPEN
         client.send(JSON.stringify(message));
       }
-    } catch (error) {
+    } catch (error:any) {
       this.logger.error(`发送消息失败: ${error.message}`);
     }
   }
@@ -567,7 +613,8 @@ export class ConnectionManagerService implements OnModuleInit, OnModuleDestroy {
     if (!room) return;
 
     for (const user of room.users.values()) {
-      if (user.client.readyState === 1) { // 1 = OPEN
+      if (user.client.readyState === 1) {
+        // 1 = OPEN
         this.sendMessage(user.client, message);
       }
     }

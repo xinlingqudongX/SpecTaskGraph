@@ -91,11 +91,14 @@ const TaskNodeSchema = z.object({
   ),
   assets: z.array(AssetSchema),
   outputs: z.array(OutputSchema),
-  status: z.enum(['pending', 'completed', 'failed', 'review_needed'], {
-    errorMap: () => ({
-      message: '节点状态必须是pending、completed、failed或review_needed之一',
+  status: z.enum(
+    ['pending', 'in_progress', 'completed', 'failed', 'review_needed'],
+    {
+      errorMap: () => ({
+        message:
+          '节点状态必须是pending、in_progress、completed、failed或review_needed之一',
+      }),
     }),
-  }),
   position: PositionSchema.optional(),
   metadata: z.record(z.unknown()).optional(),
 });

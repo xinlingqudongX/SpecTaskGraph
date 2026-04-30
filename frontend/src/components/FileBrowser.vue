@@ -6,7 +6,7 @@
         <button @click="refreshFiles" class="btn-icon" title="刷新">
           🔄
         </button>
-        <button @click="createNewFile" class="btn-icon" title="新建文件">
+        <button v-if="!isFallbackMode" @click="createNewFile" class="btn-icon" title="新建文件">
           ➕
         </button>
       </div>
@@ -24,7 +24,7 @@
       <div class="empty-icon">📁</div>
       <h4>工作区中没有项目</h4>
       <p>开始创建您的第一个工作流项目</p>
-      <div class="empty-actions">
+      <div v-if="!isFallbackMode" class="empty-actions">
         <button @click="createNewFile" class="btn-primary btn-large">
           ➕ 创建新项目
         </button>
@@ -32,6 +32,7 @@
           📋 从模板创建
         </button>
       </div>
+      <p v-else class="fallback-empty-tip">只读模式下请通过「在线项目」标签创建新项目</p>
     </div>
 
     <div v-else class="file-list">
@@ -67,12 +68,12 @@
         </div>
         <div class="file-actions">
           <button @click.stop="openFile(file.name)" class="btn-action btn-open" title="打开项目">
-            📂 打开
+            📂
           </button>
-          <button @click.stop="duplicateFile(file.name)" class="btn-action" title="复制项目">
+          <button v-if="!isFallbackMode" @click.stop="duplicateFile(file.name)" class="btn-action" title="复制项目">
             📋
           </button>
-          <button @click.stop="deleteFile(file.name)" class="btn-action btn-danger" title="删除项目">
+          <button v-if="!isFallbackMode" @click.stop="deleteFile(file.name)" class="btn-action btn-danger" title="删除项目">
             🗑️
           </button>
         </div>
@@ -197,8 +198,17 @@ interface ProjectTemplate {
   edges: any[];
 }
 
+interface FallbackFileInfo {
+  name: string;
+  content: string;
+  size: number;
+  lastModified: Date;
+}
+
 interface Props {
   workspaceHandle?: FileSystemDirectoryHandle;
+  // 降级模式：由父组件预先读取好的文件列表（无 FSAPI 时使用）
+  fallbackFiles?: FallbackFileInfo[];
 }
 
 interface Emits {
@@ -208,6 +218,9 @@ interface Emits {
 
 const props = defineProps<Props>();
 const emit = defineEmits<Emits>();
+
+// 降级模式下不支持写操作
+const isFallbackMode = computed(() => !!props.fallbackFiles && !props.workspaceHandle);
 
 const files = ref<FileInfo[]>([]);
 const selectedFile = ref<string>('');
@@ -464,12 +477,21 @@ const sortedFiles = computed(() => {
 });
 
 // 工作区切换时自动刷新文件列表
+// 降级模式：fallbackFiles prop 变化时直接刷新列表
+watch(
+  () => props.fallbackFiles,
+  (list) => {
+    if (list) refreshFiles();
+  },
+  { immediate: true }
+);
+
 watch(
   () => props.workspaceHandle,
   (handle) => {
     if (handle) {
       refreshFiles();
-    } else {
+    } else if (!props.fallbackFiles) {
       files.value = [];
       selectedFile.value = '';
     }
@@ -481,6 +503,18 @@ watch(
  * 刷新文件列表
  */
 async function refreshFiles() {
+  // 降级模式：直接从 prop 提供的文件列表渲染，无需读取本地目录
+  if (props.fallbackFiles) {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    files.value = props.fallbackFiles.map((f) => ({
+      name: f.name,
+      size: f.size,
+      lastModified: f.lastModified,
+      isRecent: f.lastModified > oneDayAgo,
+    }));
+    return;
+  }
+
   if (!props.workspaceHandle) {
     error.value = '请先选择工作区';
     return;
@@ -537,6 +571,22 @@ function selectFile(fileName: string) {
  * 打开文件
  */
 async function openFile(fileName: string) {
+  // 降级模式：直接解析内存中已存储的文件内容
+  if (props.fallbackFiles) {
+    const fileData = props.fallbackFiles.find((f) => f.name === fileName);
+    if (!fileData) {
+      error.value = `文件 ${fileName} 未找到`;
+      return;
+    }
+    try {
+      const graph = JSON.parse(fileData.content) as WorkflowGraph;
+      emit('file-opened', graph);
+    } catch {
+      error.value = `文件解析失败：${fileName}`;
+    }
+    return;
+  }
+
   if (!props.workspaceHandle) {
     error.value = '请先选择工作区';
     return;
@@ -916,49 +966,57 @@ defineExpose({
 </script>
 
 <style scoped>
+/* ─── 容器 ───────────────────────────────────────────────── */
 .file-browser {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: transparent;
 }
 
+/* ─── 头部 ───────────────────────────────────────────────── */
 .browser-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2d3148;
+  flex-shrink: 0;
 }
 
 .browser-header h3 {
   margin: 0;
-  font-size: 16px;
-  color: #333;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5a6a82;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 
 .header-actions {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .btn-icon {
-  padding: 6px 10px;
-  background-color: transparent;
-  border: 1px solid #e0e0e0;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid #2d3148;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 16px;
-  transition: all 0.2s;
+  font-size: 13px;
+  color: #5a6a82;
+  line-height: 1;
+  transition: all 0.15s;
 }
 
 .btn-icon:hover {
-  background-color: #f5f5f5;
-  border-color: #ccc;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #3d4a64;
+  color: #8b9cb3;
 }
 
+/* ─── 空/加载/错误状态 ───────────────────────────────────── */
 .loading,
 .error,
 .empty {
@@ -967,126 +1025,161 @@ defineExpose({
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 60px 40px;
-  color: #666;
+  padding: 48px 24px;
+  color: #5a6a82;
   text-align: center;
 }
 
 .error {
-  color: #f44336;
+  color: #f56c6c;
 }
 
 .empty-icon {
-  font-size: 64px;
-  margin-bottom: 20px;
-  opacity: 0.6;
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.4;
 }
 
 .empty h4 {
-  margin: 0 0 12px 0;
-  font-size: 18px;
-  color: #333;
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #8b9cb3;
 }
 
 .empty p {
-  margin: 0 0 32px 0;
-  font-size: 14px;
-  line-height: 1.5;
+  margin: 0 0 24px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #5a6a82;
 }
 
 .empty-actions {
   display: flex;
-  gap: 16px;
+  gap: 8px;
   flex-wrap: wrap;
   justify-content: center;
 }
 
 .btn-large {
-  padding: 12px 24px;
-  font-size: 14px;
+  padding: 8px 16px;
+  font-size: 13px;
   font-weight: 500;
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
+.fallback-empty-tip {
+  margin: 0;
+  font-size: 11px;
+  color: #e6a23c;
+  line-height: 1.5;
+}
+
+/* ─── 文件列表 ───────────────────────────────────────────── */
 .file-list {
   flex: 1;
   overflow-y: auto;
   padding: 0;
 }
 
+.file-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.file-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.file-list::-webkit-scrollbar-thumb {
+  background: #2d3148;
+  border-radius: 2px;
+}
+
 .list-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
-  font-size: 13px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid #2d3148;
+  font-size: 11px;
 }
 
 .list-title {
   font-weight: 600;
-  color: #555;
+  color: #5a6a82;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
 }
 
 .btn-sort {
-  background: none;
-  border: 1px solid #e0e0e0;
-  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid #2d3148;
+  padding: 3px 8px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
+  color: #5a6a82;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .btn-sort:hover {
-  background: #f0f0f0;
+  background: rgba(255, 255, 255, 0.05);
+  color: #8b9cb3;
+  border-color: #3d4a64;
 }
 
+/* ─── 文件条目 ───────────────────────────────────────────── */
 .file-item {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2d3148;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
+  overflow: hidden;
 }
 
 .file-item:hover {
-  background-color: #f8f9fa;
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .file-item.active {
-  background-color: #e3f2fd;
-  border-left: 4px solid #2196f3;
+  background-color: rgba(64, 158, 255, 0.10);
+  border-left: 3px solid #409eff;
+  padding-left: 9px;
 }
 
 .file-icon {
   position: relative;
-  margin-right: 16px;
+  margin-right: 8px;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .project-icon {
-  font-size: 32px;
+  font-size: 20px;
+  opacity: 0.85;
 }
 
 .recent-badge {
   position: absolute;
   top: -4px;
-  right: -4px;
-  background: #4caf50;
-  color: white;
-  font-size: 10px;
-  padding: 2px 4px;
-  border-radius: 8px;
-  font-weight: bold;
+  right: -6px;
+  background: #67c23a;
+  color: #fff;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .file-info {
@@ -1095,84 +1188,105 @@ defineExpose({
 }
 
 .file-name {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
+  font-weight: 500;
+  color: #c0cfe0;
+  margin-bottom: 1px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: 12px;
 }
 
 .file-description {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 6px;
+  font-size: 11px;
+  color: #5a6a82;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-meta {
   display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: #999;
+  gap: 6px;
+  font-size: 10px;
+  color: #3a4a60;
   align-items: center;
 }
 
 .recent-text {
-  color: #4caf50;
+  color: #67c23a;
   font-weight: 500;
 }
 
+/* 操作按钮绝对定位在右侧，不占 flex 布局空间 */
 .file-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
   opacity: 0;
-  transition: opacity 0.2s;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  /* 渐变遮罩让按钮出现时不与文字硬叠 */
+  background: linear-gradient(to right, transparent 0%, #1e2030 28%);
 }
 
 .file-item:hover .file-actions {
   opacity: 1;
+  pointer-events: auto;
 }
 
+.file-item.active .file-actions {
+  background: linear-gradient(to right, transparent 0%, rgba(25, 35, 60, 0.95) 28%);
+}
+
+/* ─── 操作按钮 ───────────────────────────────────────────── */
 .btn-action {
-  padding: 6px 12px;
-  background-color: transparent;
-  border: 1px solid #e0e0e0;
+  padding: 3px 6px;
+  background: transparent;
+  border: 1px solid #2d3148;
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
-  transition: all 0.2s;
+  color: #5a6a82;
+  line-height: 1;
+  transition: all 0.15s;
   white-space: nowrap;
 }
 
 .btn-action:hover {
-  background-color: #f5f5f5;
-  border-color: #ccc;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #3d4a64;
+  color: #8b9cb3;
 }
 
 .btn-action.btn-open {
-  background-color: #2196f3;
-  color: white;
-  border-color: #2196f3;
+  background: rgba(64, 158, 255, 0.15);
+  color: #409eff;
+  border-color: rgba(64, 158, 255, 0.3);
 }
 
 .btn-action.btn-open:hover {
-  background-color: #1976d2;
+  background: rgba(64, 158, 255, 0.28);
+  border-color: #409eff;
 }
 
 .btn-action.btn-danger:hover {
-  background-color: #ffebee;
-  border-color: #f44336;
-  color: #f44336;
+  background: rgba(245, 108, 108, 0.12);
+  border-color: rgba(245, 108, 108, 0.4);
+  color: #f56c6c;
 }
 
+/* ─── 对话框 ─────────────────────────────────────────────── */
 .dialog-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1180,12 +1294,13 @@ defineExpose({
 }
 
 .dialog {
-  background-color: white;
+  background: #232536;
+  border: 1px solid #2d3148;
   border-radius: 8px;
   padding: 24px;
   min-width: 400px;
   max-width: 90%;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .dialog-large {
@@ -1194,87 +1309,104 @@ defineExpose({
 }
 
 .dialog h3 {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  color: #333;
+  margin: 0 0 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #e8eaf0;
 }
 
+/* ─── 模板选择 ───────────────────────────────────────────── */
 .template-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .template-item {
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
+  border: 1px solid #2d3148;
+  border-radius: 6px;
+  padding: 14px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .template-item:hover {
-  border-color: #2196f3;
-  background-color: #f8f9ff;
+  border-color: rgba(64, 158, 255, 0.4);
+  background: rgba(64, 158, 255, 0.06);
 }
 
 .template-item.selected {
-  border-color: #2196f3;
-  background-color: #e3f2fd;
+  border-color: #409eff;
+  background: rgba(64, 158, 255, 0.12);
 }
 
 .template-icon {
-  font-size: 32px;
+  font-size: 28px;
   flex-shrink: 0;
+  opacity: 0.9;
 }
 
 .template-info {
   flex: 1;
+  min-width: 0;
 }
 
 .template-info h4 {
-  margin: 0 0 8px 0;
-  font-size: 16px;
-  color: #333;
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c0cfe0;
 }
 
 .template-info p {
   margin: 0;
-  font-size: 13px;
-  color: #666;
+  font-size: 12px;
+  color: #5a6a82;
   line-height: 1.4;
 }
 
+/* ─── 表单 ───────────────────────────────────────────────── */
 .form-group {
   margin-bottom: 16px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
   font-weight: 500;
-  color: #666;
+  color: #8b9cb3;
 }
 
 .form-group input,
 .form-group textarea {
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #2d3148;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 13px;
+  color: #c0cfe0;
   box-sizing: border-box;
   font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #3a4a60;
 }
 
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #2196F3;
+  border-color: #409eff;
+  background: rgba(64, 158, 255, 0.04);
 }
 
 .form-group textarea {
@@ -1285,54 +1417,63 @@ defineExpose({
 .error-text {
   display: block;
   margin-top: 4px;
-  font-size: 12px;
-  color: #f44336;
+  font-size: 11px;
+  color: #f56c6c;
 }
 
 .help-text {
   display: block;
   margin-top: 4px;
-  font-size: 12px;
-  color: #999;
+  font-size: 11px;
+  color: #3a4a60;
 }
 
+/* ─── 对话框按钮 ─────────────────────────────────────────── */
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 24px;
+  margin-top: 20px;
 }
 
 .btn-primary,
 .btn-secondary {
-  padding: 8px 16px;
-  border: none;
+  padding: 7px 16px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+  border: 1px solid transparent;
 }
 
 .btn-primary {
-  background-color: #4CAF50;
-  color: white;
+  background: #409eff;
+  color: #fff;
+  border-color: #409eff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: #45a049;
+  background: #66b1ff;
+  border-color: #66b1ff;
 }
 
 .btn-primary:disabled {
-  background-color: #ccc;
+  background: rgba(64, 158, 255, 0.2);
+  border-color: transparent;
+  color: rgba(255, 255, 255, 0.3);
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background-color: #f5f5f5;
-  color: #333;
+  background: transparent;
+  color: #8b9cb3;
+  border-color: #2d3148;
 }
 
 .btn-secondary:hover {
-  background-color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #3d4a64;
+  color: #c0cfe0;
 }
 </style>

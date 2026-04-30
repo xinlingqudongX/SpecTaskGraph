@@ -1,20 +1,22 @@
 import { createApp } from 'vue'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+// LogicFlow 官方 CSS 必须先于自定义样式，确保自定义规则能覆盖默认值
+import '@logicflow/core/dist/index.css'
+// import '@logicflow/extension/lib/index.css'
+import '@logicflow/extension/lib/style/index.css'
 import './style.css'
 import './styles/logicflow.css'
-import '@logicflow/core/dist/index.css'
-import '@logicflow/extension/lib/index.css'
-import Toast, { POSITION } from 'vue-toastification'
-import 'vue-toastification/dist/index.css'
 import App from './App.vue'
 
 const app = createApp(App)
-app.use(Toast, {
-  position: POSITION.TOP_RIGHT,
-  timeout: 3000,
-  closeOnClick: true,
-  pauseOnHover: true,
-  draggable: false,
-  hideProgressBar: false,
-  maxToasts: 5,
-})
+
+app.use(ElementPlus)
+
+// 批量注册所有图标
+for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+  app.component(key, component)
+}
+
 app.mount('#app')

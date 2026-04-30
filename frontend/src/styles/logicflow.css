@@ -102,7 +102,7 @@
 }
 
 /* 控制面板样式 */
-.lf-control {
+/* .lf-control {
   position: absolute;
   top: 20px;
   right: 20px;
@@ -131,17 +131,20 @@
   border-color: #667eea;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
+} */
 
-.lf-control-item svg {
+/* Control 插件用 <i> + background-image 渲染图标，而非 SVG */
+/* .lf-control-item i {
+  display: inline-block;
   width: 20px;
   height: 20px;
-  fill: #666;
+  background-size: cover;
+  opacity: 0.6;
 }
 
-.lf-control-item:hover svg {
-  fill: #667eea;
-}
+.lf-control-item:hover i {
+  opacity: 1;
+} */
 
 /* 右键菜单样式 */
 .lf-menu {
@@ -329,7 +332,7 @@
     height: 36px;
   }
   
-  .lf-control-item svg {
+  .lf-control-item i {
     width: 18px;
     height: 18px;
   }

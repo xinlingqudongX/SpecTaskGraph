@@ -29,14 +29,16 @@ export interface CursorPosition {
 }
 
 /**
- * 协同操作类型
+ * 协同操作类型（含 node-select 用于多人选中感知）
  */
 export type CollaborationOperationType = 
   | 'node-create'
   | 'node-update'
   | 'node-delete'
   | 'edge-create'
-  | 'edge-delete';
+  | 'edge-delete'
+  | 'node-select'
+  | 'canvas-sync';
 
 /**
  * 协同操作
@@ -47,7 +49,12 @@ export interface CollaborationOperation {
   edgeId?: string;
   data?: unknown;
   userId: string;
+  displayName?: string;
   timestamp: Date;
+  // 客户端生成的唯一 ID，用于接收方去重，防止重复应用
+  operationId?: string;
+  // 服务端分配的单调递增序号，用于排序和去重
+  serverSeq?: number;
 }
 
 /**
@@ -68,6 +75,8 @@ export class CollaborationService {
   private userLeaveCallbacks: ((userId: string) => void)[] = [];
   private connectionStateCallbacks: ((state: ConnectionState) => void)[] = [];
   private onlineUsersUpdateCallbacks: ((users: User[]) => void)[] = [];
+  // 服务端推送的画布快照回调（新用户加入时触发）
+  private canvasSnapshotCallbacks: ((graphData: any) => void)[] = [];
 
   constructor() {
     this.wsManager = new WebSocketManager();
@@ -173,7 +182,8 @@ export class CollaborationService {
       projectId: this.currentProjectId,
       userId: this.currentUserInfo.userId,
       timestamp: new Date().toISOString(),
-      data: { position },
+      // projectId 必须在 data 内，否则后端 @MessageBody() 中 data.projectId 为 undefined
+      data: { projectId: this.currentProjectId, position },
     });
   }
 
@@ -188,7 +198,7 @@ export class CollaborationService {
       projectId: this.currentProjectId,
       userId: this.currentUserInfo.userId,
       timestamp: new Date().toISOString(),
-      data: { operation },
+      data: { projectId: this.currentProjectId, operation },
     });
   }
 
@@ -250,8 +260,11 @@ export class CollaborationService {
       }, 10000);
 
       // 监听房间加入成功事件
+      // message.projectId 来自 payload，做宽松匹配（兼容 projectId 在 data 内部的情况）
       const handleRoomJoined = (message: WebSocketMessage) => {
-        if (message.type === 'room-joined' && message.projectId === projectId) {
+        const msgData = message.data as any;
+        const msgProjectId = message.projectId || msgData?.projectId || msgData?.roomId || '';
+        if (message.type === 'room-joined' && (msgProjectId === projectId || msgProjectId === '')) {
           clearTimeout(timeout);
           this.wsManager.offMessage(handleRoomJoined);
           console.log(`已加入项目房间: ${projectId}`, message.data);
@@ -321,6 +334,12 @@ export class CollaborationService {
           break;
         case 'connection-established':
           console.log('连接已建立:', message.data);
+          break;
+        case 'node-select':
+          this.handleNodeSelectMessage(message);
+          break;
+        case 'canvas-snapshot':
+          this.handleCanvasSnapshot(message);
           break;
         case 'heartbeat-ack':
           // 心跳确认，不需要特殊处理
@@ -396,10 +415,12 @@ export class CollaborationService {
       timestamp: new Date(data.position.timestamp || message.timestamp),
     };
 
-    // 通知光标更新回调
+    // userId 优先取 payload 内部字段，其次取消息顶层字段
+    const userId = message.userId || data.userId || data.clientId || '';
+
     this.cursorUpdateCallbacks.forEach(callback => {
       try {
-        callback(message.userId, position);
+        callback(userId, position);
       } catch (error) {
         console.error('光标更新回调执行失败:', error);
       }
@@ -418,8 +439,12 @@ export class CollaborationService {
       nodeId: data.operation.nodeId,
       edgeId: data.operation.edgeId,
       data: data.operation.data,
-      userId: message.userId,
+      userId: message.userId || data.userId || data.clientId || '',
+      displayName: data.displayName || '',
       timestamp: new Date(data.operation.timestamp || message.timestamp),
+      // 透传后端生成的唯一 ID 和序号，供客户端去重
+      operationId: data.operationId,
+      serverSeq: data.serverSeq,
     };
 
     // 通知操作回调
@@ -433,15 +458,65 @@ export class CollaborationService {
   }
 
   /**
+   * 将 node-select 消息转换为 operation 并通知订阅者，
+   * 复用 operationCallbacks 通道避免新增回调类型。
+   */
+  private handleNodeSelectMessage(message: WebSocketMessage): void {
+    const data = message.data as any;
+    const operation: CollaborationOperation = {
+      type: 'node-select',
+      nodeId: data?.nodeIds?.[0],
+      data,
+      userId: message.userId || data?.userId || '',
+      timestamp: new Date(message.timestamp),
+    };
+    this.operationCallbacks.forEach(cb => {
+      try { cb(operation); } catch (err) { console.error('node-select 回调失败:', err); }
+    });
+  }
+
+  /**
+   * 处理服务端推送的画布快照（新用户加入时接收当前画布状态）
+   */
+  private handleCanvasSnapshot(message: WebSocketMessage): void {
+    const data = message.data as any;
+    if (!data?.graphData) return;
+    this.canvasSnapshotCallbacks.forEach(cb => {
+      try { cb(data.graphData); } catch (err) { console.error('canvas-snapshot 回调失败:', err); }
+    });
+  }
+
+  /** 注册画布快照回调，新用户加入时由服务端触发一次 */
+  onCanvasSnapshot(callback: (graphData: any) => void): void {
+    this.canvasSnapshotCallbacks.push(callback);
+  }
+
+  /**
+   * 广播节点选中/取消选中状态给其他协作者
+   */
+  broadcastNodeSelect(nodeIds: string[], selected: boolean, color?: string): void {
+    if (!this.currentUserInfo || !this.currentProjectId) return;
+    this.wsManager.send({
+      type: 'node-select',
+      projectId: this.currentProjectId,
+      userId: this.currentUserInfo.userId,
+      timestamp: new Date().toISOString(),
+      data: { projectId: this.currentProjectId, nodeIds, selected, color },
+    });
+  }
+
+  /**
    * 处理在线用户列表
    */
   private handleOnlineUsers(message: WebSocketMessage): void {
     const data = message.data as any;
-    if (!data || !Array.isArray(data.users)) return;
+    // NestJS 可能把 users 放在 data.users，也可能直接是数组
+    const userList: any[] = data?.users ?? (Array.isArray(data) ? data : []);
+    if (!userList.length && !data?.users) return;
 
     this.onlineUsers.clear();
-    
-    data.users.forEach((userData: any) => {
+
+    userList.forEach((userData: any) => {
       if (userData.userId && userData.displayName) {
         const user: User = {
           userId: userData.userId,

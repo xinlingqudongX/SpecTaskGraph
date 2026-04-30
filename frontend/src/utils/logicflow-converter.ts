@@ -28,9 +28,14 @@ export class LogicFlowDataConverter implements DataConverter {
 
     workflowData.elements.forEach((element) => {
       if (element.group === 'nodes') {
-        const nodeData = element.data as NodeData;
-        const logicFlowNode = this.convertNodeData(nodeData);
-        nodes.push(logicFlowNode);
+        const raw = element.data as NodeData;
+        // element.position 是 App.vue 写入坐标的字段，需合并进 nodeData
+        const nodeData: NodeData = {
+          ...raw,
+          x: element.position?.x ?? raw.x ?? 100,
+          y: element.position?.y ?? raw.y ?? 100,
+        };
+        nodes.push(this.convertNodeData(nodeData));
       } else if (element.group === 'edges') {
         const edgeData = element.data as EdgeData;
         const logicFlowEdge = this.convertEdgeData(edgeData);
@@ -38,7 +43,12 @@ export class LogicFlowDataConverter implements DataConverter {
       }
     });
 
-    return { nodes, edges };
+    const nodeIds = new Set(nodes.map((node) => node.id));
+    const validEdges = edges.filter((edge) =>
+      nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId),
+    );
+
+    return { nodes, edges: validEdges };
   }
 
   /**
@@ -95,6 +105,7 @@ export class LogicFlowDataConverter implements DataConverter {
         nodeType: nodeData.type,
         width,
         height,
+        expanded: nodeData.type === 'root' ? undefined : true,
         requirement: nodeData.config.requirement ?? '',
         prompt: nodeData.config.prompt ?? null,
         attributes: nodeData.config.attributes ?? [],
@@ -109,12 +120,17 @@ export class LogicFlowDataConverter implements DataConverter {
   convertEdgeData(edgeData: EdgeData): ExtendedEdgeConfig {
     return {
       id: edgeData.id,
-      type: 'polyline', // LogicFlow默认边类型
+      type: 'styled-polyline',
       sourceNodeId: edgeData.source,
       targetNodeId: edgeData.target,
       properties: {
         edgeType: edgeData.type || 'sequence',
+        strokeStyle: edgeData.style?.strokeStyle ?? 'solid',
       },
+      // 还原 Dagre 整理后的折线路径点，精确回显边的走向
+      pointsList: edgeData.pointsList,
+      startPoint: edgeData.startPoint,
+      endPoint: edgeData.endPoint,
     };
   }
 
@@ -158,6 +174,13 @@ export class LogicFlowDataConverter implements DataConverter {
       source: edge.sourceNodeId,
       target: edge.targetNodeId,
       type: edge.properties?.edgeType || 'sequence',
+      style: {
+        strokeStyle: (edge.properties?.strokeStyle as string) || 'solid',
+      },
+      // 保存折线路径点，Dagre 整理后的走向可精确回显
+      pointsList: edge.pointsList,
+      startPoint: edge.startPoint,
+      endPoint: edge.endPoint,
     };
   }
 
@@ -167,22 +190,30 @@ export class LogicFlowDataConverter implements DataConverter {
   private mapNodeTypeToLogicFlow(nodeType: NodeType): string {
     const typeMap: Record<NodeType, string> = {
       root: 'RootNode',
-      text: 'TextNode',
-      property: 'PropertyNode',
-      file: 'FileNode',
-      image: 'ImageNode',
-      video: 'VideoNode',
-      audio: 'AudioNode',
+      // 画布层统一使用小写类型，避免再次回流成 TextNode / ImageNode 这类历史值
+      text: 'text',
+      property: 'property',
+      file: 'file',
+      image: 'image',
+      video: 'video',
+      audio: 'audio',
     };
-    return typeMap[nodeType] || 'TextNode';
+    return typeMap[nodeType] || 'text';
   }
 
   /**
    * 映射节点类型（LogicFlow格式 -> 现有格式）
    */
   private mapLogicFlowTypeToNodeType(logicFlowType: string): NodeType {
-    // 从properties中获取实际的节点类型，如果没有则使用默认映射
+    // 兼容两类历史数据：旧的 PascalCase 注册名，以及现在统一的小写类型
     const typeMap: Record<string, NodeType> = {
+      'root': 'root',
+      'text': 'text',
+      'property': 'property',
+      'file': 'file',
+      'image': 'image',
+      'video': 'video',
+      'audio': 'audio',
       'RootNode': 'root',
       'TextNode': 'text',
       'PropertyNode': 'property',
@@ -270,6 +301,7 @@ export class LogicFlowDataConverter implements DataConverter {
         nodeType: type,
         width,
         height,
+        expanded: type === 'root' ? undefined : true,
       },
     };
   }
@@ -282,11 +314,12 @@ export class LogicFlowDataConverter implements DataConverter {
 
     return {
       id,
-      type: 'polyline',
+      type: 'styled-polyline',
       sourceNodeId: sourceId,
       targetNodeId: targetId,
       properties: {
         edgeType: 'sequence',
+        strokeStyle: 'solid',
       },
     };
   }

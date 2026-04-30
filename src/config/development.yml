@@ -1,4 +1,11 @@
-Base:
-  database: database.sqlite
-  host: localhost
-  port: 3306
+app:
+  host: 0.0.0.0
+  port: 9000
+
+postgres:
+  host: 192.168.3.62
+  port: 30691
+  username: "postgres"
+  password: "QwEr12.3df"
+  schema: public
+  database: ai_spec_develop

@@ -7,7 +7,12 @@
 export type NodeType = 'root' | 'text' | 'image' | 'video' | 'audio' | 'file' | 'property';
 
 // 节点状态枚举
-export type NodeStatus = 'pending' | 'completed' | 'failed' | 'review_needed';
+export type NodeStatus =
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'failed'
+  | 'review_needed';
 
 // 基础节点配置接口
 export interface BaseNodeConfig {
@@ -39,6 +44,7 @@ export interface ExtendedNodeConfig extends BaseNodeConfig {
     height?: number;
     requirement?: string;
     prompt?: string | null;
+    agentRoleId?: string | null;
     attributes?: Array<{ key: string; value: string }>;
     [key: string]: any;
   };
@@ -58,6 +64,8 @@ export interface BaseEdgeConfig {
     x: number;
     y: number;
   };
+  // Dagre 整理后的折线路径点，保存后可精确回显边的走向
+  pointsList?: Array<{ x: number; y: number }>;
   text?: {
     value: string;
     x: number;
@@ -100,6 +108,7 @@ export interface NodeData {
     properties?: Array<{ key: string; value: string }>;
     requirement?: string;
     prompt?: string | null;
+    agentRoleId?: string | null;
     attributes?: Array<{ key: string; value: string }>;
     [key: string]: any;
   };
@@ -111,6 +120,10 @@ export interface EdgeData {
   source: string;
   target: string;
   type?: string;
+  style?: { strokeStyle?: string };
+  pointsList?: Array<{ x: number; y: number }>;
+  startPoint?: { x: number; y: number };
+  endPoint?: { x: number; y: number };
 }
 
 // 工作流数据接口（用于与现有系统兼容）

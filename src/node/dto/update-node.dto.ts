@@ -4,6 +4,7 @@ import { createZodDto } from 'nestjs-zod';
 export const updateNodeSchema = z.object({
   requirement: z.string().optional(),
   prompt: z.string().optional(),
+  agentRoleId: z.string().uuid().nullable().optional(),
   attributes: z
     .array(z.object({ key: z.string(), value: z.string() }))
     .optional(),

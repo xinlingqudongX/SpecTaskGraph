@@ -125,6 +125,23 @@ export class MessageHandlerService {
         },
       });
 
+      // 若房间有历史画布快照，发送给新加入的用户以同步当前画布状态
+      const currentRoom = this.roomManager.getRoom(projectId);
+      if (currentRoom?.canvasSnapshot) {
+        try {
+          const graphData = JSON.parse(currentRoom.canvasSnapshot);
+          this.sendMessage(client, {
+            type: 'canvas-snapshot',
+            projectId,
+            userId: 'system',
+            timestamp: new Date().toISOString(),
+            data: { graphData },
+          });
+        } catch {
+          this.logger.warn(`发送画布快照失败，快照数据无效: ${projectId}`);
+        }
+      }
+
       // 记录操作日志
       this.logOperation('user-join', userInfo.userId, projectId, {
         displayName,
@@ -304,7 +321,21 @@ export class MessageHandlerService {
         return;
       }
 
-      // 创建节点操作消息
+      // 分配单调递增的服务端序号
+      const room = this.roomManager.getRoom(projectId);
+      const serverSeq = room ? ++room.seq : 0;
+
+      // canvas-sync 类型操作存储画布快照，供新加入用户同步
+      if (operation.type === 'canvas-sync' && room) {
+        const graphData = (operation.data as any)?.graphData;
+        if (graphData) {
+          room.canvasSnapshot = typeof graphData === 'string'
+            ? graphData
+            : JSON.stringify(graphData);
+        }
+      }
+
+      // 创建节点操作消息，注入 serverSeq 供客户端去重排序
       const operationMessage: WebSocketMessage = {
         type: 'node-operation',
         projectId,
@@ -317,7 +348,8 @@ export class MessageHandlerService {
             timestamp: new Date(), // 使用服务器时间戳
           },
           displayName: user.displayName,
-          operationId: this.generateOperationId(), // 生成唯一操作ID
+          operationId: this.generateOperationId(), // 唯一操作ID，用于客户端去重
+          serverSeq,                               // 服务端序号
         },
       };
 
@@ -490,10 +522,15 @@ export class MessageHandlerService {
    * 验证节点操作数据
    */
   private isValidNodeOperation(operation: CollaborationOperation): boolean {
-    const validTypes = ['node-create', 'node-update', 'node-delete', 'edge-create', 'edge-delete'];
+    const validTypes = ['node-create', 'node-update', 'node-delete', 'edge-create', 'edge-delete', 'canvas-sync'];
     
     if (!validTypes.includes(operation.type)) {
       return false;
+    }
+
+    // canvas-sync 只需要 data.graphData，不需要 nodeId / edgeId
+    if (operation.type === 'canvas-sync') {
+      return true;
     }
 
     // 节点操作必须有nodeId
@@ -603,6 +640,39 @@ export class MessageHandlerService {
       if (user.client !== excludeClient && user.client.readyState === 1) { // 1 = OPEN
         this.sendMessage(user.client, message);
       }
+    }
+  }
+
+  /**
+   * 处理节点选中/取消选中，广播给房间内其他用户。
+   * 其他用户收到后可在画布上显示彩色选中框，感知协作者的焦点。
+   */
+  async handleNodeSelect(
+    server: any,
+    client: any,
+    projectId: string,
+    data: { nodeIds: string[]; selected: boolean; color?: string; displayName?: string }
+  ): Promise<void> {
+    try {
+      const user = this.userManager.getUserByClientId(this.getClientId(client));
+      if (!user) return;
+
+      this.broadcastToRoom(server, projectId, {
+        type: 'node-select',
+        projectId,
+        userId: user.userId,
+        timestamp: new Date().toISOString(),
+        data: {
+          nodeIds: data.nodeIds,
+          selected: data.selected,
+          color: data.color || '#409eff',
+          displayName: user.displayName,
+          userId: user.userId,
+        },
+      }, client);
+
+    } catch (error) {
+      this.logger.error(`处理节点选中失败: ${error.message}`, error.stack);
     }
   }
 

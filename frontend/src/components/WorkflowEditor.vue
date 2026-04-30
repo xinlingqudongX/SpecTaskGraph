@@ -1,13 +1,5 @@
 <template>
   <div class="workflow-editor">
-    <!-- 协同功能组件 -->
-    <CollaborativeCursors
-      ref="cursorsRef"
-      :show-user-names="collaborationState.currentUser?.preferences?.showUserNames ?? true"
-      :container="container || undefined"
-      @cursor-click="handleCursorClick"
-    />
-    
     <!-- 用户配置对话框 -->
     <UserConfigDialog
       v-if="collaborationManager"
@@ -20,72 +12,94 @@
     <!-- 工具栏 -->
     <div class="toolbar">
       <div class="toolbar-left">
-        <h3>工作流图编辑器 (LogicFlow)</h3>
+        <!-- 节点添加按钮组 -->
+        <el-tooltip content="文本节点" placement="bottom">
+          <el-button size="small" :icon="Document" @click="addNode('text')">文本</el-button>
+        </el-tooltip>
+        <el-tooltip content="图片节点" placement="bottom">
+          <el-button size="small" :icon="Picture" @click="addNode('image')">图片</el-button>
+        </el-tooltip>
+        <el-tooltip content="音频节点" placement="bottom">
+          <el-button size="small" :icon="Headset" @click="addNode('audio')">音频</el-button>
+        </el-tooltip>
+        <el-tooltip content="视频节点" placement="bottom">
+          <el-button size="small" :icon="VideoPlay" @click="addNode('video')">视频</el-button>
+        </el-tooltip>
+        <el-tooltip content="文件节点" placement="bottom">
+          <el-button size="small" :icon="FolderOpened" @click="addNode('file')">文件</el-button>
+        </el-tooltip>
+        <el-tooltip content="属性节点" placement="bottom">
+          <el-button size="small" :icon="List" @click="addNode('property')">属性</el-button>
+        </el-tooltip>
       </div>
+
       <div class="toolbar-right">
-        <!-- 协同功能按钮 -->
-        <button
-          v-if="collaborationEnabled"
-          @click="showUserConfig = true"
-          class="btn btn-info"
-          :title="`当前用户: ${collaborationState.currentUser?.displayName || '未设置'}`"
-        >
-          <span class="icon">👤</span> {{ collaborationState.currentUser?.displayName || '设置用户' }}
-        </button>
-        <div v-if="collaborationEnabled" class="connection-indicator" :class="connectionClass">
-          <span class="connection-dot"></span>
-          {{ connectionText }}
-        </div>
-        <div class="divider"></div>
-        
-        <!-- 节点创建按钮 -->
-        <button @click="addNode('text')" class="btn btn-secondary">
-          <span class="icon">📝</span> 文本节点
-        </button>
-        <button @click="addNode('image')" class="btn btn-info">
-          <span class="icon">🖼️</span> 图片节点
-        </button>
-        <button @click="addNode('audio')" class="btn btn-info">
-          <span class="icon">🔊</span> 音频节点
-        </button>
-        <button @click="addNode('video')" class="btn btn-info">
-          <span class="icon">🎬</span> 视频节点
-        </button>
-        <button @click="addNode('file')" class="btn btn-info">
-          <span class="icon">📁</span> 文件节点
-        </button>
-        <button @click="addNode('property')" class="btn btn-info">
-          <span class="icon">🏷️</span> 属性节点
-        </button>
-        
-        <div class="divider"></div>
-        
+        <!-- 协同状态 -->
+        <template v-if="collaborationEnabled">
+          <!-- 连接状态标签 -->
+          <el-tag
+            :type="connectionClass === 'connected' ? 'success' : connectionClass === 'connecting' ? 'warning' : 'danger'"
+            size="small"
+            class="conn-tag"
+          >
+            <span class="conn-dot" />
+            {{ connectionText }}
+          </el-tag>
+
+          <!-- 当前用户设置 -->
+          <el-tooltip :content="`当前用户: ${collaborationState.currentUser?.displayName || '未设置'}`" placement="bottom">
+            <el-button size="small" :icon="UserIcon" circle @click="showUserConfig = true" />
+          </el-tooltip>
+
+          <!-- 在线用户 Popover -->
+          <el-popover
+            placement="bottom-end"
+            :width="270"
+            trigger="click"
+            popper-class="online-users-popover"
+          >
+            <template #reference>
+              <el-tooltip content="在线用户" placement="bottom">
+                <el-button size="small" circle>
+                  <el-badge
+                    :value="collaborationState.onlineUsers.length"
+                    :hidden="collaborationState.onlineUsers.length === 0"
+                    type="success"
+                  >
+                    <el-icon><UserFilled /></el-icon>
+                  </el-badge>
+                </el-button>
+              </el-tooltip>
+            </template>
+
+            <OnlineUsersList
+              :users="collaborationState.onlineUsers"
+              :current-user="currentUserForList"
+              :connection-state="collaborationState.connectionState"
+              @edit-user="showUserConfig = true"
+              @focus-user="focusOnUser"
+              @reconnect="reconnectCollaboration"
+              @refresh-users="refreshUsers"
+            />
+          </el-popover>
+
+          <el-divider direction="vertical" />
+        </template>
+
         <!-- 操作按钮 -->
-        <button @click="saveGraph" class="btn btn-info">
-          <span class="icon">💾</span> 保存
-        </button>
-        <button @click="downloadJson" class="btn btn-success">
-          <span class="icon">⬇️</span> 导出JSON
-        </button>
-        <button @click="clearGraph" class="btn btn-danger">
-          <span class="icon">🗑️</span> 清空
-        </button>
-      </div>
-      <div v-if="collaborationEnabled" class="toolbar-users">
-        <OnlineUsersList
-          :users="collaborationState.onlineUsers"
-          :current-user="currentUserForList"
-          :connection-state="collaborationState.connectionState"
-          :show-all-cursors="showAllCursors"
-          :default-collapsed="true"
-          class="online-users-inline"
-          @edit-user="showUserConfig = true"
-          @focus-user="focusOnUser"
-          @toggle-user-cursor="toggleUserCursor"
-          @toggle-all-cursors="toggleAllCursors"
-          @reconnect="reconnectCollaboration"
-          @refresh-users="refreshUsers"
-        />
+        <!-- <el-tooltip content="保存 (Ctrl+S)" placement="bottom">
+          <el-button size="small" type="primary" :icon="DocumentChecked" @click="saveGraph">保存</el-button>
+        </el-tooltip>
+        <el-tooltip content="导出 JSON" placement="bottom">
+          <el-button size="small" :icon="Download" @click="downloadJson">导出</el-button>
+        </el-tooltip> -->
+
+        <el-tooltip content="整理为从上到下" placement="bottom">
+          <el-button size="small" @click="organizeGraph">整理</el-button>
+        </el-tooltip>
+        <el-tooltip content="清空画布" placement="bottom">
+          <el-button size="small" type="danger" plain :icon="Delete" @click="clearGraph" />
+        </el-tooltip>
       </div>
     </div>
 
@@ -97,19 +111,23 @@
 </template>
 <script setup lang="ts">
 import { ref, reactive, onMounted, onBeforeUnmount, watch, nextTick, computed } from 'vue';
-import LogicFlow, { RectNode, RectNodeModel, HtmlNode, HtmlNodeModel } from '@logicflow/core';
-import '@logicflow/core/dist/index.css'; // 导入LogicFlow核心样式
-import '@logicflow/extension/dist/index.css'; // 导入LogicFlow扩展样式
-import CollaborativeCursors from './CollaborativeCursors.vue';
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
+import {
+  Document, Picture, Headset, VideoPlay, FolderOpened, List,
+  DocumentChecked, Download, Delete,
+  User as UserIcon, UserFilled,
+} from '@element-plus/icons-vue';
+import LogicFlow from '@logicflow/core';
+// CSS 已在 main.ts 统一导入，此处不重复引入
 import OnlineUsersList from './OnlineUsersList.vue';
 import UserConfigDialog from './UserConfigDialog.vue';
 import { CollaborationManagerService } from '../services/collaboration-manager.service';
 import type { CollaborationState } from '../services/collaboration-manager.service';
 import type { User, CollaborationOperation } from '../services/collaboration.service';
 import type { UserConfig } from '../services/user-manager.service';
-import type { OperationConflict } from '../services/operation-sync.service';
 import { getWebSocketUrl } from '../config/websocket.config';
 import { createLogicFlowInstance } from '../config/logicflow.config';
+import { resetNodeCardRenderState } from '../nodes/NodeCardRenderer';
 import { logicFlowConverter } from '../utils/logicflow-converter';
 import '../nodes/node-card.css';
 import { workflowLogger, logicflowLogger } from '../utils/logger';
@@ -118,7 +136,6 @@ import type {
   NodeStatus, 
   ExtendedNodeConfig, 
   ExtendedEdgeConfig,
-  LogicFlowGraphData,
   WorkflowData 
 } from '../types/logicflow.types';
 
@@ -127,12 +144,10 @@ workflowLogger.group('模块导入检查');
 workflowLogger.info('LogicFlow导入状态', {
   LogicFlow: typeof LogicFlow,
   LogicFlowConstructor: LogicFlow,
-  RectNode: typeof RectNode,
-  RectNodeModel: typeof RectNodeModel,
   createLogicFlowInstance: typeof createLogicFlowInstance,
   logicFlowConverter: typeof logicFlowConverter,
   hasLogicFlowPrototype: LogicFlow.prototype ? '存在' : '不存在',
-  hasRectNodePrototype: RectNode.prototype ? '存在' : '不存在'
+  hasLogicFlowMethods: LogicFlow.prototype ? Object.getOwnPropertyNames(LogicFlow.prototype).length > 0 : false
 });
 workflowLogger.groupEnd();
 
@@ -159,12 +174,34 @@ const collaborationState = ref<CollaborationState>({
   connectionState: 'disconnected',
   currentUser: null,
   onlineUsers: [],
-  pendingOperations: 0,
-  conflicts: 0,
 });
 const showUserConfig = ref(false);
-const showAllCursors = ref(true);
-const cursorsRef = ref<InstanceType<typeof CollaborativeCursors> | null>(null);
+
+// 应用远端更新期间置为 true，防止将收到的操作再次广播出去（回声循环）
+const isApplyingRemoteUpdate = ref(false);
+
+// 已处理的 operationId 集合，防止同一操作被应用两次
+const appliedOperationIds = new Set<string>();
+// 每 5 分钟清空一次，防止内存无限增长
+setInterval(() => appliedOperationIds.clear(), 5 * 60 * 1000);
+
+
+// 防抖定时器：节点属性/内容变更后延迟 400ms 再广播全量画布
+let propChangeSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 延迟广播全量 canvas-sync，400ms 内多次触发只发一次 */
+function schedulePropChangeSync(): void {
+  if (propChangeSyncTimer) clearTimeout(propChangeSyncTimer);
+  propChangeSyncTimer = setTimeout(() => {
+    propChangeSyncTimer = null;
+    if (!logicFlowInstance.value) return;
+    const graphData = logicFlowInstance.value.getGraphData();
+    broadcastOperation({ type: 'canvas-sync', data: { graphData } });
+  }, 400);
+}
+
+// userId → displayName 缓存，用于离开通知时取名字
+const userDisplayNames = new Map<string, string>();
 
 // 生成唯一ID的工具函数
 const generateUniqueId = (prefix: string) => {
@@ -287,11 +324,11 @@ onMounted(async () => {
 
 // 组件卸载前清理
 onBeforeUnmount(() => {
+  if (propChangeSyncTimer) { clearTimeout(propChangeSyncTimer); propChangeSyncTimer = null; }
+  resetNodeCardRenderState();
   if (logicFlowInstance.value) {
     logicFlowInstance.value.destroy();
   }
-  
-  // 清理协同功能
   if (collaborationManager.value) {
     collaborationManager.value.destroy();
   }
@@ -306,6 +343,23 @@ watch(
     }
   },
   { immediate: true }
+);
+
+// 切换项目时重置协同状态，防止旧房间的 canvas-snapshot 污染新项目画布
+watch(
+  () => props.projectId,
+  (newId, oldId) => {
+    if (!newId || newId === oldId) return;
+    appliedOperationIds.clear();
+    // 销毁旧协同连接，重新加入新项目房间
+    if (collaborationManager.value) {
+      collaborationManager.value.destroy();
+      collaborationManager.value = null;
+    }
+    if (props.collaborationEnabled) {
+      initializeCollaboration();
+    }
+  }
 );
 
 /**
@@ -356,12 +410,6 @@ function initializeLogicFlow() {
       hasRegister: typeof logicFlowInstance.value?.register
     });
     
-    // 注册自定义节点类型（必须在addNode之前完成）
-    logicflowLogger.info('正在注册自定义节点类型...');
-    logicflowLogger.time('自定义节点注册');
-    registerCustomNodes();
-    logicflowLogger.timeEnd('自定义节点注册');
-    
     // 验证节点是否注册成功
     if (logicFlowInstance.value) {
       const graphModel = (logicFlowInstance.value as any).graphModel;
@@ -401,219 +449,19 @@ function initializeLogicFlow() {
   }
 }
 
+// 拖拽节流时间戳，80ms 内只广播一次全量快照
+let lastDragBroadcast = 0;
+
 /**
- * 注册自定义节点类型
+ * 立即广播全量画布快照。
+ * 用于需要实时同步的操作（节点新增、拖拽中、拖拽结束）。
  */
-function registerCustomNodes() {
-  if (!logicFlowInstance.value) {
-    logicflowLogger.error('无法注册自定义节点：LogicFlow实例不存在');
-    return;
-  }
-
-  logicflowLogger.group('自定义节点注册');
-  const lf = logicFlowInstance.value;
-
-  try {
-    logicflowLogger.info('开始注册节点类型', {
-      logicFlowInstance: !!lf,
-      RectNode: typeof RectNode,
-      RectNodeModel: typeof RectNodeModel,
-      registerMethod: typeof lf.register
-    });
-
-    // 定义所有自定义节点类（包含View和Model）
-    const nodeConfigs: Array<{ type: string; view: any; model: any }> = [];
-
-    // 1. 根节点（HtmlNode，避免 LogicFlow 默认 SVG text 与节点框分离）
-    class RootNodeModel extends HtmlNodeModel {
-      setAttributes() {
-        this.width = 180;
-        this.height = 70;
-      }
-    }
-    class RootNodeView extends HtmlNode {
-      setHtml(rootEl: SVGForeignObjectElement) {
-        rootEl.innerHTML = '';
-        const model = this.props.model as any;
-        const title: string = model.properties?.title || model.text?.value || '开始';
-
-        const wrap = document.createElement('div');
-        wrap.style.cssText = [
-          'width:100%', 'height:100%', 'box-sizing:border-box',
-          'background:linear-gradient(160deg,#1f5d98 0%,#0e3f6f 100%)',
-          'border-radius:8px', 'border:2px solid #0b3c66',
-          'display:flex', 'flex-direction:column',
-          'align-items:center', 'justify-content:flex-start',
-          'overflow:hidden',
-        ].join(';');
-
-        // 顶部标签栏
-        const tag = document.createElement('div');
-        tag.style.cssText = [
-          'width:100%', 'padding:4px 8px 2px', 'box-sizing:border-box',
-          'font-size:10px', 'font-weight:700', 'letter-spacing:1px',
-          'color:rgba(255,255,255,0.6)', 'text-transform:uppercase',
-          'border-bottom:1px solid rgba(255,255,255,0.15)',
-          'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-        ].join(';');
-        tag.textContent = 'START';
-
-        // 标题行
-        const label = document.createElement('div');
-        label.style.cssText = [
-          'flex:1', 'width:100%', 'display:flex', 'align-items:center',
-          'justify-content:center', 'padding:0 10px', 'box-sizing:border-box',
-          'color:#fff', 'font-weight:700', 'font-size:14px',
-          'white-space:nowrap', 'overflow:hidden', 'text-overflow:ellipsis',
-          'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-        ].join(';');
-        label.textContent = title;
-
-        wrap.appendChild(tag);
-        wrap.appendChild(label);
-        rootEl.appendChild(wrap);
-      }
-      shouldUpdate() { return true; }
-    }
-
-    nodeConfigs.push({
-      type: 'RootNode',
-      view: RootNodeView,
-      model: RootNodeModel
-    });
-
-    // 2. 文本节点
-    class TextNodeModel extends RectNodeModel {
-      initNodeData(data: any) {
-        super.initNodeData(data);
-        const textValue = data?.properties?.textContent ?? data?.text?.value;
-        if (textValue && this.text) {
-          this.text.value = textValue;
-        }
-
-        const width = data?.width ?? data?.properties?.width;
-        const height = data?.height ?? data?.properties?.height;
-        if (typeof width === 'number' && typeof height === 'number') {
-          this.width = width;
-          this.height = height;
-        }
-      }
-    }
-    class TextNodeView extends RectNode {}
-    
-    nodeConfigs.push({ 
-      type: 'TextNode', 
-      view: TextNodeView,
-      model: TextNodeModel
-    });
-
-    // 3. 属性节点
-    class PropertyNodeModel extends RectNodeModel {}
-    class PropertyNodeView extends RectNode {}
-    
-    nodeConfigs.push({ 
-      type: 'PropertyNode', 
-      view: PropertyNodeView,
-      model: PropertyNodeModel
-    });
-
-    // 4. 文件节点
-    class FileNodeModel extends RectNodeModel {}
-    class FileNodeView extends RectNode {}
-    
-    nodeConfigs.push({ 
-      type: 'FileNode', 
-      view: FileNodeView,
-      model: FileNodeModel
-    });
-
-    // 5. 图片节点
-    class ImageNodeModel extends RectNodeModel {}
-    class ImageNodeView extends RectNode {}
-    
-    nodeConfigs.push({ 
-      type: 'ImageNode', 
-      view: ImageNodeView,
-      model: ImageNodeModel
-    });
-
-    // 6. 视频节点
-    class VideoNodeModel extends RectNodeModel {}
-    class VideoNodeView extends RectNode {}
-    
-    nodeConfigs.push({ 
-      type: 'VideoNode', 
-      view: VideoNodeView,
-      model: VideoNodeModel
-    });
-
-    // 7. 音频节点
-    class AudioNodeModel extends RectNodeModel {}
-    class AudioNodeView extends RectNode {}
-    
-    nodeConfigs.push({ 
-      type: 'AudioNode', 
-      view: AudioNodeView,
-      model: AudioNodeModel
-    });
-
-    // 批量注册所有节点
-    const registeredNodes: string[] = [];
-    const failedNodes: Array<{ name: string; error: any }> = [];
-
-    nodeConfigs.forEach((config) => {
-      try {
-        logicflowLogger.debug(`正在注册节点: ${config.type}`, {
-          type: config.type,
-          hasView: !!config.view,
-          hasModel: !!config.model,
-          viewPrototype: !!config.view.prototype,
-          modelPrototype: !!config.model.prototype
-        });
-        
-        lf.register(config);
-        registeredNodes.push(config.type);
-        logicflowLogger.success(`${config.type} 注册成功`);
-      } catch (error) {
-        failedNodes.push({ name: config.type, error });
-        logicflowLogger.error(`${config.type} 注册失败`, error);
-      }
-    });
-    
-    // 注册完成后验证
-    logicflowLogger.info('节点注册完成统计', {
-      totalNodes: nodeConfigs.length,
-      successCount: registeredNodes.length,
-      failedCount: failedNodes.length,
-      registeredNodes,
-      failedNodes: failedNodes.map(f => f.name)
-    });
-
-    // 验证节点是否真正注册到LogicFlow中
-    const graphModel = (lf as any).graphModel;
-    if (graphModel && graphModel.modelMap) {
-      const registeredTypes = Object.keys(graphModel.modelMap);
-      logicflowLogger.success('LogicFlow内部已注册的节点类型', {
-        types: registeredTypes,
-        count: registeredTypes.length,
-        hasRootNode: registeredTypes.includes('RootNode'),
-        hasTextNode: registeredTypes.includes('TextNode')
-      });
-    } else {
-      logicflowLogger.warn('无法访问LogicFlow的modelMap进行验证');
-    }
-    
-    if (failedNodes.length > 0) {
-      throw new Error(`部分节点注册失败: ${failedNodes.map(f => f.name).join(', ')}`);
-    }
-    
-  } catch (error) {
-    logicflowLogger.error('自定义节点注册过程中发生错误', error);
-    throw error; // 重新抛出错误，阻止后续初始化
-  }
-  
-  logicflowLogger.groupEnd();
+function broadcastCanvasSync(): void {
+  if (!logicFlowInstance.value) return;
+  const graphData = logicFlowInstance.value.getGraphData();
+  broadcastOperation({ type: 'canvas-sync', data: { graphData } });
 }
+
 /**
  * 设置LogicFlow事件监听器
  */
@@ -622,9 +470,32 @@ function setupLogicFlowEvents() {
 
   const lf = logicFlowInstance.value;
 
+  const expandNodeAndFocusRequirement = (nodeId: string) => {
+    const model = lf.getNodeModelById(nodeId);
+    if (!model) return;
+    const current = model.getProperties();
+    if (!current.expanded) {
+      model.setProperties({ expanded: true });
+      schedulePropChangeSync();
+    }
+
+    // 先触发节点展开重绘，再聚焦到需求说明输入框
+    nextTick(() => {
+      requestAnimationFrame(() => {
+        const cards = Array.from(document.querySelectorAll<HTMLElement>('.node-card'));
+        const card = cards.find((item) => item.dataset.nodeId === nodeId);
+        const textarea = card?.querySelector<HTMLTextAreaElement>('.node-card__requirement-textarea');
+        if (!textarea) return;
+        textarea.focus();
+        const end = textarea.value.length;
+        textarea.setSelectionRange(end, end);
+      });
+    });
+  };
+
   // 节点点击事件：只负责展开（收起由卡片 header 内部处理，避免点击表单元素时误触）
   lf.on('node:click', ({ data }) => {
-    console.log('节点点击:', data);
+    if (isApplyingRemoteUpdate.value) return;
     // 跳过 RootNode，不展开编辑区
     if (data.type === 'root' || data.type === 'RootNode') return;
     const model = lf.getNodeModelById(data.id);
@@ -633,110 +504,92 @@ function setupLogicFlowEvents() {
     // 仅当折叠时才展开；展开态的收起由卡片 header 按钮处理
     if (!current.expanded) {
       model.setProperties({ expanded: true });
+      schedulePropChangeSync();
     }
   });
 
   // 节点双击事件
   lf.on('node:dblclick', ({ data }) => {
-    console.log('节点双击:', data);
-    // 可以在这里打开节点编辑对话框
+    if (isApplyingRemoteUpdate.value) return;
+    if (data.type === 'root' || data.type === 'RootNode') return;
+    expandNodeAndFocusRequirement(data.id);
   });
 
-  // 节点拖拽事件
-  lf.on('node:dragstart', ({ data }) => {
-    broadcastOperation({
-      type: 'node-update',
-      nodeId: data.id,
-      data: {
-        position: { x: data.x, y: data.y },
-        isDragging: true,
-        dragStart: true,
-      },
-    });
+  // 拖拽中：节流广播全量画布，让协作者实时看到节点移动
+  lf.on('node:drag', () => {
+    if (isApplyingRemoteUpdate.value) return;
+    const now = Date.now();
+    if (now - lastDragBroadcast < 80) return;
+    lastDragBroadcast = now;
+    broadcastCanvasSync();
   });
 
-  lf.on('node:drag', ({ data }) => {
-    // 节流广播拖拽位置更新
-    broadcastOperation({
-      type: 'node-update',
-      nodeId: data.id,
-      data: {
-        position: { x: data.x, y: data.y },
-        isDragging: true,
-      },
-    });
+  // 拖拽结束：广播最终位置的全量画布
+  lf.on('node:dragend', () => {
+    if (isApplyingRemoteUpdate.value) return;
+    broadcastCanvasSync();
   });
 
-  lf.on('node:dragend', ({ data }) => {
-    broadcastOperation({
-      type: 'node-update',
-      nodeId: data.id,
-      data: {
-        position: { x: data.x, y: data.y },
-        isDragging: false,
-      },
-    });
+  // 节点添加：直接广播全量画布，确保接收方与本地画布状态完全一致（避免坐标/类型映射偏差）
+  lf.on('node:add', () => {
+    if (isApplyingRemoteUpdate.value) return;
+    broadcastCanvasSync();
   });
 
-  // 节点添加事件
-  lf.on('node:add', ({ data }) => {
-    console.log('节点添加:', data);
-    broadcastOperation({
-      type: 'node-create',
-      nodeId: data.id,
-      data: {
-        type: data.type,
-        position: { x: data.x, y: data.y },
-        text: data.text?.value || '',
-        properties: data.properties || {},
-      },
-    });
+  // 节点/边删除、连线变化：使用防抖，避免批量操作时多次广播
+  lf.on('node:delete', () => {
+    if (isApplyingRemoteUpdate.value) return;
+    schedulePropChangeSync();
   });
 
-  // 节点删除事件
-  lf.on('node:delete', ({ data }) => {
-    console.log('节点删除:', data);
-    broadcastOperation({
-      type: 'node-delete',
-      nodeId: data.id,
-      data: {},
-    });
+  lf.on('edge:add', () => {
+    if (isApplyingRemoteUpdate.value) return;
+    schedulePropChangeSync();
   });
 
-  // 边添加事件
-  lf.on('edge:add', ({ data }) => {
-    console.log('边添加:', data);
-    broadcastOperation({
-      type: 'edge-create',
-      edgeId: data.id,
-      data: {
-        source: data.sourceNodeId,
-        target: data.targetNodeId,
-      },
-    });
+  lf.on('edge:delete', () => {
+    if (isApplyingRemoteUpdate.value) return;
+    schedulePropChangeSync();
   });
 
-  // 边删除事件
-  lf.on('edge:delete', ({ data }) => {
-    console.log('边删除:', data);
-    broadcastOperation({
-      type: 'edge-delete',
-      edgeId: data.id,
-      data: {},
-    });
+  lf.on('text:update', () => {
+    if (isApplyingRemoteUpdate.value) return;
+    schedulePropChangeSync();
   });
 
-  // 文本更新事件
-  lf.on('text:update', ({ id, value }) => {
-    console.log('文本更新:', id, value);
-    broadcastOperation({
-      type: 'node-update',
-      nodeId: id,
-      data: {
-        text: value,
-      },
-    });
-  });
+  // 节点属性/内容变更（展开/收起/字段编辑）：由 NodeCardRenderer 通过 window 事件通知
+  const handleNodeChangedEvent = () => {
+    if (isApplyingRemoteUpdate.value) return;
+    schedulePropChangeSync();
+  };
+  const handleEditNodeContentEvent = (event: Event) => {
+    const detail = (event as CustomEvent<{ nodeId?: string }>).detail;
+    if (!detail?.nodeId) return;
+    expandNodeAndFocusRequirement(detail.nodeId);
+  };
+  const handleAddChildNodeEvent = (event: Event) => {
+    const detail = (event as CustomEvent<{ nodeId?: string }>).detail;
+    if (!detail?.nodeId) return;
+    addChildNode(detail.nodeId, 'text');
+  };
+  // 边样式变更后触发保存同步（由 logicflow.config.ts 的右键菜单 dispatch）
+  const handleEdgeStyleChangedEvent = () => {
+    if (!isApplyingRemoteUpdate.value) schedulePropChangeSync();
+  };
+
+  window.addEventListener('lf:node-changed', handleNodeChangedEvent);
+  window.addEventListener('lf:edit-node-content', handleEditNodeContentEvent);
+  window.addEventListener('lf:add-child-node', handleAddChildNodeEvent);
+  window.addEventListener('lf:edge-style-changed', handleEdgeStyleChangedEvent);
+  // 组件卸载时移除监听
+  const _removeNodeChangedListener = () => window.removeEventListener('lf:node-changed', handleNodeChangedEvent);
+  const _removeEditNodeContentListener = () => window.removeEventListener('lf:edit-node-content', handleEditNodeContentEvent);
+  const _removeAddChildNodeListener = () => window.removeEventListener('lf:add-child-node', handleAddChildNodeEvent);
+  const _removeEdgeStyleChangedListener = () => window.removeEventListener('lf:edge-style-changed', handleEdgeStyleChangedEvent);
+  onBeforeUnmount(_removeNodeChangedListener);
+  onBeforeUnmount(_removeEditNodeContentListener);
+  onBeforeUnmount(_removeAddChildNodeListener);
+  onBeforeUnmount(_removeEdgeStyleChangedListener);
 }
 
 /**
@@ -786,12 +639,13 @@ function ensureRootNode() {
 
       logicflowLogger.debug('根节点配置', rootNode);
 
-      try {
+        try {
         const addedNode = lf.addNode(rootNode);
         logicflowLogger.success('根节点创建成功', {
           nodeId: addedNode?.id || rootNode.id,
           addedNode
         });
+
         
         // 验证节点是否真的被添加
         const updatedGraphData = lf.getGraphData();
@@ -836,23 +690,51 @@ function loadWorkflowData(workflowData: WorkflowData) {
   if (!logicFlowInstance.value || !workflowData) return;
 
   try {
-    // 转换数据格式
     const logicFlowData = logicFlowConverter.toLogicFlowData(workflowData);
-
-    // 渲染数据
+    // 画布整体重绘前必须丢弃旧节点签名，避免跨项目复用时首屏误判为“无需更新”
+    resetNodeCardRenderState();
     logicFlowInstance.value.render(logicFlowData);
-
-    // 确保有根节点
-    ensureRootNode();
-
-    // 居中视图以显示所有节点
-    nextTick(() => {
-      logicFlowInstance.value?.fitView(20);
-    });
-
-    console.log('工作流数据加载成功');
   } catch (error) {
     console.error('加载工作流数据失败:', error);
+  }
+
+  // 无论数据加载成功或失败都确保根节点存在
+  ensureRootNode();
+
+  // 保留用户手动调整过的坐标，打开时只做居中，不自动重排
+  nextTick(() => {
+    const lf = logicFlowInstance.value;
+    if (!lf) return;
+    lf.fitView(80);
+  });
+}
+
+/**
+ * 通用 Dagre 布局执行器。
+ * 供打开项目自动调用，以及工具栏"整理"按钮调用。
+ */
+function applyDagreLayout(lf: InstanceType<typeof LogicFlow>): boolean {
+  const dagreLayout = (lf as any).extension?.dagre;
+  if (!dagreLayout || typeof dagreLayout.layout !== 'function') return false;
+
+  try {
+    // Dagre 内部会重建节点与边数据，先清空渲染缓存，避免首帧被旧签名跳过
+    resetNodeCardRenderState();
+    dagreLayout.layout({
+      rankdir: 'TB',
+      ranker: 'tight-tree',
+      align: 'UL',
+      ranksep: 180,
+      nodesep: 100,
+      marginx: 120,
+      marginy: 80,
+      isDefaultAnchor: true,
+    });
+    nextTick(() => lf.fitView(80));
+    return true;
+  } catch (err) {
+    console.error('Dagre 布局执行失败:', err);
+    return false;
   }
 }
 
@@ -871,6 +753,25 @@ function getNodeSize(nodeType: NodeType): { width: number; height: number } {
   };
 
   return sizeMap[nodeType] || { width: 420, height: 260 };
+}
+
+function organizeGraph() {
+  if (!logicFlowInstance.value) return;
+
+  const lf = logicFlowInstance.value;
+  const graphData = lf.getGraphData() as { nodes?: unknown[] };
+  if ((graphData.nodes?.length ?? 0) <= 1) {
+    ElMessage.info('当前节点数量不足，无需整理');
+    return;
+  }
+
+  if (!applyDagreLayout(lf)) {
+    ElMessage.error('官方布局插件未就绪，暂时无法整理画布');
+    return;
+  }
+
+  broadcastCanvasSync();
+  ElMessage.success('画布已按官方布局整理为从上到下结构');
 }
 
 function addNode(nodeType: NodeType, position?: { x: number; y: number }) {
@@ -952,14 +853,11 @@ function addNode(nodeType: NodeType, position?: { x: number; y: number }) {
     y: pos.y,
     width,
     height,
-    text: {
-      value: `${nodeType.toUpperCase()} 节点`,
-      x: pos.x,
-      y: pos.y,
-    },
+    text: { value: '', x: pos.x, y: pos.y },
     properties: {
       title: `${nodeType.toUpperCase()} 节点`,
       nodeType: nodeType,
+      expanded: true,
       status: 'pending' as NodeStatus,
       textContent: '',
       resourceUrl: '',
@@ -987,7 +885,19 @@ function addNode(nodeType: NodeType, position?: { x: number; y: number }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nodes: [{ nodeId, nodeType }],
+          nodes: [{
+            nodeId,
+            nodeType,
+            parentNodeId: null,
+            sortOrder: 0,
+            dependencies: [],
+            status: nodeConfig.properties.status,
+            attributes: {
+              name: nodeConfig.properties.title,
+              _visualType: nodeType,
+              position: { x: pos.x, y: pos.y },
+            },
+          }],
         }),
       }).catch((err) => {
         workflowLogger.warn('节点同步到后端失败', { nodeId, err });
@@ -1004,6 +914,90 @@ function addNode(nodeType: NodeType, position?: { x: number; y: number }) {
   }
 
   workflowLogger.groupEnd();
+}
+
+function addChildNode(parentNodeId: string, childNodeType: NodeType = 'text') {
+  if (!logicFlowInstance.value) return;
+
+  const lf = logicFlowInstance.value;
+  const parentNode = lf.getNodeModelById(parentNodeId) as any;
+  if (!parentNode) return;
+
+  const { width: childWidth, height: childHeight } = getNodeSize(childNodeType);
+  const graphData = lf.getGraphData() as any;
+  const childCount = (graphData?.edges ?? []).filter((edge: any) => edge.sourceNodeId === parentNodeId).length;
+  const horizontalGap = 120;
+  const verticalGap = 120;
+  const baseX = parentNode.x;
+  const offsetX = childCount === 0 ? 0 : childCount * (childWidth / 2 + horizontalGap);
+  const childPosition = {
+    x: Math.round(baseX + offsetX),
+    y: Math.round(parentNode.y + parentNode.height / 2 + childHeight / 2 + verticalGap),
+  };
+
+  const typeMap: Record<NodeType, string> = {
+    root: 'RootNode',
+    text: 'text',
+    property: 'property',
+    file: 'file',
+    image: 'image',
+    video: 'video',
+    audio: 'audio',
+  };
+  const childNodeId = generateUniqueId('node');
+  const logicFlowType = typeMap[childNodeType] || 'text';
+
+  // 右键菜单的“添加节点”直接表达父子意图：在当前节点下方创建并连线
+  lf.addNode({
+    id: childNodeId,
+    type: logicFlowType,
+    x: childPosition.x,
+    y: childPosition.y,
+    width: childWidth,
+    height: childHeight,
+    text: { value: '', x: childPosition.x, y: childPosition.y },
+    properties: {
+      title: `${childNodeType.toUpperCase()} 节点`,
+      nodeType: childNodeType,
+      expanded: true,
+      status: 'pending' as NodeStatus,
+      textContent: '',
+      resourceUrl: '',
+      resourceName: '',
+      properties: childNodeType === 'property' ? [{ key: '', value: '' }] : [],
+    },
+  });
+
+  lf.addEdge({
+    id: generateUniqueId('edge'),
+    type: 'styled-polyline',
+    sourceNodeId: parentNodeId,
+    targetNodeId: childNodeId,
+  });
+
+  if (props.projectId) {
+    fetch(`/api/v1/workflow/${props.projectId}/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nodes: [{
+          nodeId: childNodeId,
+          nodeType: childNodeType,
+          parentNodeId,
+          sortOrder: childCount,
+          dependencies: [parentNodeId],
+          status: 'pending',
+          attributes: {
+            name: `${childNodeType.toUpperCase()} 节点`,
+            _visualType: childNodeType,
+            position: { x: childPosition.x, y: childPosition.y },
+          },
+        }],
+      }),
+    }).catch((err) => {
+      workflowLogger.warn('子节点同步到后端失败', { childNodeId, parentNodeId, err });
+    });
+  }
 }
 
 /**
@@ -1030,10 +1024,18 @@ function saveGraph() {
 /**
  * 清空图形
  */
-function clearGraph() {
+async function clearGraph() {
   if (!logicFlowInstance.value) return;
-  
-  if (!confirm('确定要清空所有节点吗？')) return;
+
+  try {
+    await ElMessageBox.confirm('确定要清空所有节点吗？此操作不可撤销。', '清空确认', {
+      confirmButtonText: '清空',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+  } catch {
+    return;
+  }
 
   // 广播清空操作
   broadcastOperation({
@@ -1129,42 +1131,34 @@ async function initializeCollaboration(): Promise<void> {
 function setupCollaborationEventHandlers(): void {
   if (!collaborationManager.value) return;
 
-  // 状态变化
+  // 状态变化：同步更新 UI 状态，并刷新用户名缓存
   collaborationManager.value.onStateChange((state) => {
-    console.log('协同状态更新:', {
-      isConnected: state.isConnected,
-      connectionState: state.connectionState,
-      onlineUsersCount: state.onlineUsers.length,
-      currentUser: state.currentUser?.displayName,
-    });
     collaborationState.value = state;
+    state.onlineUsers.forEach(u => userDisplayNames.set(u.userId, u.displayName));
   });
 
-  // 用户加入
+  // 用户加入：弹出绿色通知
   collaborationManager.value.onUserJoin((user) => {
-    console.log(`用户 ${user.displayName} 加入协作`);
+    userDisplayNames.set(user.userId, user.displayName);
+    ElNotification({
+      title: '新协作者加入',
+      message: `${user.displayName} 加入了本项目的协作`,
+      type: 'success',
+      duration: 3000,
+      position: 'bottom-right',
+    });
   });
 
-  // 用户离开
+  // 用户离开：弹出通知
   collaborationManager.value.onUserLeave((userId) => {
-    // 移除该用户的光标
-    if (cursorsRef.value) {
-      cursorsRef.value.removeCursor(userId);
-    }
-    console.log(`用户 ${userId} 离开协作`);
-  });
-
-  // 光标更新
-  collaborationManager.value.onCursorUpdate((userId, position) => {
-    const user = collaborationState.value.onlineUsers.find(u => u.userId === userId);
-    if (user && cursorsRef.value) {
-      cursorsRef.value.updateCursor(
-        userId,
-        user.displayName,
-        user.color || '#999',
-        position
-      );
-    }
+    const name = userDisplayNames.get(userId) || userId;
+    ElNotification({
+      title: '协作者离开',
+      message: `${name} 离开了协作`,
+      type: 'info',
+      duration: 3000,
+      position: 'bottom-right',
+    });
   });
 
   // 操作接收
@@ -1172,9 +1166,13 @@ function setupCollaborationEventHandlers(): void {
     handleRemoteOperation(operation);
   });
 
-  // 冲突检测
-  collaborationManager.value.onConflict((conflict) => {
-    handleOperationConflict(conflict);
+  // 监听服务端推送的画布快照：画布已有节点时忽略，
+  // 避免异步到达的快照覆盖刚从 API 渲染的正确内容
+  collaborationManager.value.onCanvasSnapshot((graphData) => {
+    const lf = logicFlowInstance.value;
+    if (!lf) return;
+    if (lf.getGraphData().nodes.length > 0) return;
+    handleRemoteCanvasSync(graphData, lf);
   });
 }
 
@@ -1182,19 +1180,39 @@ function setupCollaborationEventHandlers(): void {
  * 处理远程操作
  */
 function handleRemoteOperation(operation: CollaborationOperation): void {
-  console.log('收到远程操作:', operation);
-
   if (!logicFlowInstance.value) return;
+
+  // operationId 去重：同一操作只应用一次（网络重传 / 多路由场景）
+  if (operation.operationId) {
+    if (appliedOperationIds.has(operation.operationId)) return;
+    appliedOperationIds.add(operation.operationId);
+  }
 
   const lf = logicFlowInstance.value;
 
+  // 标记正在应用远端更新，防止本地事件监听器重复广播
+  isApplyingRemoteUpdate.value = true;
+
   switch (operation.type) {
+    case 'canvas-sync': {
+      const syncData = operation.data as any;
+      if (syncData?.graphData) {
+        // handleRemoteCanvasSync 内部通过 nextTick 异步清除标志
+        handleRemoteCanvasSync(syncData.graphData, lf);
+        return;
+      }
+      break;
+    }
     case 'node-create':
       handleRemoteNodeCreate(operation, lf);
       break;
-    case 'node-update':
-      handleRemoteNodeUpdate(operation, lf);
+    case 'node-update': {
+      const opData = operation.data as any;
+      if (opData?.isDragging !== true) {
+        handleRemoteNodeUpdate(operation, lf);
+      }
       break;
+    }
     case 'node-delete':
       handleRemoteNodeDelete(operation, lf);
       break;
@@ -1205,6 +1223,8 @@ function handleRemoteOperation(operation: CollaborationOperation): void {
       handleRemoteEdgeDelete(operation, lf);
       break;
   }
+
+  isApplyingRemoteUpdate.value = false;
 }
 
 /**
@@ -1214,44 +1234,53 @@ function handleRemoteNodeCreate(operation: CollaborationOperation, lf: LogicFlow
   const data = operation.data as any;
   if (!data || !operation.nodeId) return;
 
-  // 检查节点是否已存在
-  const existingNode = lf.getNodeModelById(operation.nodeId);
-  if (existingNode) return;
-
-  // 映射节点类型
+  // 映射节点类型：必须与 registerCardNodes 中注册的类型名完全一致
   const typeMap: Record<string, string> = {
     root: 'RootNode',
-    text: 'TextNode',
-    property: 'PropertyNode',
-    file: 'FileNode',
-    image: 'ImageNode',
-    video: 'VideoNode',
-    audio: 'AudioNode',
+    text: 'text',
+    property: 'property',
+    file: 'file',
+    image: 'image',
+    video: 'video',
+    audio: 'audio',
   };
 
-  const logicFlowType = typeMap[data.type] || 'TextNode';
-
+  const logicFlowType = typeMap[data.type] || 'text';
   const nodeType = (data.type as NodeType) || 'text';
   const { width, height } = getNodeSize(nodeType);
-  const nodeConfig = {
+
+  const existingNode = lf.getNodeModelById(operation.nodeId);
+  if (existingNode) {
+    // 节点已存在：直接覆盖属性，不重复创建
+    if (data.position) {
+      const dx = data.position.x - (existingNode as any).x;
+      const dy = data.position.y - (existingNode as any).y;
+      if (dx !== 0 || dy !== 0) (existingNode as any).moveTo(data.position.x, data.position.y);
+    }
+    existingNode.setProperties({
+      ...data.properties,
+      nodeType: data.type,
+      expanded: data.type === 'root' ? undefined : true,
+    });
+    return;
+  }
+
+  lf.addNode({
     id: operation.nodeId,
     type: logicFlowType,
     x: data.position?.x || 100,
     y: data.position?.y || 100,
     width,
     height,
-    text: {
-      value: data.text || '远程节点',
-      x: data.position?.x || 100,
-      y: data.position?.y || 100,
-    },
+    text: { value: '', x: data.position?.x || 100, y: data.position?.y || 100 },
     properties: {
       ...data.properties,
       nodeType: data.type,
+      expanded: data.type === 'root' ? undefined : true,
     },
-  };
+  });
 
-  lf.addNode(nodeConfig);
+  syncNodeEdgesFromPayload(operation.nodeId, data, lf);
 }
 
 /**
@@ -1264,9 +1293,18 @@ function handleRemoteNodeUpdate(operation: CollaborationOperation, lf: LogicFlow
   const nodeModel = lf.getNodeModelById(operation.nodeId);
   if (!nodeModel) return;
 
-  // 更新节点位置
+  // moveNode 语义是增量（delta），需换算成绝对坐标的差值
   if (data.position) {
-    lf.moveNode(operation.nodeId, data.position.x, data.position.y);
+    const dx = data.position.x - (nodeModel as any).x;
+    const dy = data.position.y - (nodeModel as any).y;
+    if (dx !== 0 || dy !== 0) {
+      if (typeof nodeModel.moveTo === 'function') {
+        nodeModel.moveTo(data.position.x, data.position.y);
+      } else if (typeof (nodeModel as any).x === 'number' && typeof (nodeModel as any).y === 'number') {
+        (nodeModel as any).x = data.position.x;
+        (nodeModel as any).y = data.position.y;
+      }
+    }
   }
 
   // 更新节点文本
@@ -1274,13 +1312,63 @@ function handleRemoteNodeUpdate(operation: CollaborationOperation, lf: LogicFlow
     nodeModel.updateText(data.text);
   }
 
-  // 更新节点属性
-  if (data.properties) {
+  // 更新节点属性：既支持前端协作消息里的 data.properties，
+  // 也支持后端系统广播直接放在顶层的 status / executor* 字段。
+  const propertyPatch = {
+    ...(data.properties ?? {}),
+    ...(data.parentNodeId !== undefined ? { parentNodeId: data.parentNodeId } : {}),
+    ...(data.sortOrder !== undefined ? { sortOrder: data.sortOrder } : {}),
+    ...(data.dependencies !== undefined ? { dependencies: data.dependencies } : {}),
+    ...(data.status !== undefined ? { status: data.status } : {}),
+    ...(data.updatedAt !== undefined ? { updatedAt: data.updatedAt } : {}),
+    ...(data.executorSessionId !== undefined
+      ? { executorSessionId: data.executorSessionId }
+      : {}),
+    ...(data.executorAgentName !== undefined
+      ? { executorAgentName: data.executorAgentName }
+      : {}),
+    ...(data.executorTodo !== undefined ? { executorTodo: data.executorTodo } : {}),
+    ...(data.executorLockedAt !== undefined
+      ? { executorLockedAt: data.executorLockedAt }
+      : {}),
+    ...(data.agentRoleId !== undefined ? { agentRoleId: data.agentRoleId } : {}),
+  };
+
+  if (Object.keys(propertyPatch).length > 0) {
     nodeModel.setProperties({
       ...nodeModel.getProperties(),
-      ...data.properties,
+      ...propertyPatch,
+      expanded: (data.type ?? nodeModel.getProperties()?.nodeType) === 'root' ? undefined : true,
     });
   }
+
+  syncNodeEdgesFromPayload(operation.nodeId, data, lf);
+}
+
+/**
+ * 用全量画布数据同步，同时保留本地视口（缩放 / 平移不受影响）。
+ * lf.render() 会重置 transformModel，需在下一帧手动恢复。
+ */
+function handleRemoteCanvasSync(graphData: any, lf: LogicFlow): void {
+  const tm = (lf as any).graphModel?.transformModel;
+  const savedVP = tm
+    ? { SCALE_X: tm.SCALE_X, SCALE_Y: tm.SCALE_Y, transformX: tm.transformX, transformY: tm.transformY }
+    : null;
+
+  // 全量快照会替换整张画布，旧节点缓存继续参与判断会把新 DOM 首次渲染跳掉
+  resetNodeCardRenderState();
+  lf.render(graphData);
+
+  // render 后下一帧：恢复视口，并解除防回声标志
+  nextTick(() => {
+    if (savedVP && tm) {
+      tm.SCALE_X = savedVP.SCALE_X;
+      tm.SCALE_Y = savedVP.SCALE_Y ?? savedVP.SCALE_X;
+      tm.transformX = savedVP.transformX;
+      tm.transformY = savedVP.transformY;
+    }
+    isApplyingRemoteUpdate.value = false;
+  });
 }
 
 /**
@@ -1296,11 +1384,53 @@ function handleRemoteNodeDelete(operation: CollaborationOperation, lf: LogicFlow
     return;
   }
 
+  if (Array.isArray(data?.deletedNodeIds) && data.deletedNodeIds.length > 0) {
+    for (const deletedNodeId of data.deletedNodeIds) {
+      const nodeModel = lf.getNodeModelById(deletedNodeId);
+      if (nodeModel) {
+        lf.deleteNode(deletedNodeId);
+      }
+    }
+    return;
+  }
+
   if (!operation.nodeId) return;
 
   const nodeModel = lf.getNodeModelById(operation.nodeId);
   if (nodeModel) {
     lf.deleteNode(operation.nodeId);
+  }
+}
+
+/**
+ * 根据后端返回的 dependencies / parentNodeId，同步当前节点的输入边。
+ */
+function syncNodeEdgesFromPayload(nodeId: string, data: any, lf: LogicFlow): void {
+  const dependencyIds = Array.isArray(data?.dependencies)
+    ? data.dependencies.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0)
+    : (typeof data?.parentNodeId === 'string' && data.parentNodeId.length > 0 ? [data.parentNodeId] : []);
+
+  const graphData = lf.getGraphData();
+  const existingIncomingEdges = (graphData?.edges ?? []).filter((edge: any) => edge.targetNodeId === nodeId);
+  const desiredSources = new Set(dependencyIds);
+
+  for (const edge of existingIncomingEdges) {
+    if (!desiredSources.has(edge.sourceNodeId)) {
+      lf.deleteEdge(edge.id);
+    }
+  }
+
+  for (const dependencyId of dependencyIds) {
+    const edgeId = `${dependencyId}->${nodeId}`;
+    const existingEdge = lf.getEdgeModelById(edgeId);
+    if (!existingEdge) {
+      lf.addEdge({
+        id: edgeId,
+        type: 'styled-polyline',
+        sourceNodeId: dependencyId,
+        targetNodeId: nodeId,
+      });
+    }
   }
 }
 
@@ -1311,18 +1441,13 @@ function handleRemoteEdgeCreate(operation: CollaborationOperation, lf: LogicFlow
   const data = operation.data as any;
   if (!data || !data.source || !data.target) return;
 
-  // 检查边是否已存在
-  const existingEdge = lf.getEdgeModelById(operation.edgeId || '');
-  if (existingEdge) return;
+  const edgeId = operation.edgeId || generateUniqueId('edge');
 
-  const edgeConfig = {
-    id: operation.edgeId || generateUniqueId('edge'),
-    type: 'polyline',
-    sourceNodeId: data.source,
-    targetNodeId: data.target,
-  };
+  // 边已存在则先删后建，确保源/目标节点始终与远端一致
+  const existingEdge = lf.getEdgeModelById(edgeId);
+  if (existingEdge) lf.deleteEdge(edgeId);
 
-  lf.addEdge(edgeConfig);
+  lf.addEdge({ id: edgeId, type: 'styled-polyline', sourceNodeId: data.source, targetNodeId: data.target });
 }
 
 /**
@@ -1338,19 +1463,6 @@ function handleRemoteEdgeDelete(operation: CollaborationOperation, lf: LogicFlow
 }
 
 /**
- * 处理操作冲突
- */
-function handleOperationConflict(conflict: OperationConflict): void {
-  console.warn('操作冲突:', conflict);
-  
-  // 这里可以显示冲突解决界面
-  // 目前简单地接受远程操作
-  if (collaborationManager.value) {
-    collaborationManager.value.resolveConflict(conflict, 'accept-remote');
-  }
-}
-
-/**
  * 广播操作
  */
 function broadcastOperation(operation: Omit<CollaborationOperation, 'userId' | 'timestamp'>): void {
@@ -1358,6 +1470,7 @@ function broadcastOperation(operation: Omit<CollaborationOperation, 'userId' | '
     collaborationManager.value.broadcastOperation(operation);
   }
 }
+
 
 /**
  * 处理用户配置保存
@@ -1374,36 +1487,6 @@ function handleUserConfigSave(userConfig: UserConfig): void {
  */
 function focusOnUser(user: User): void {
   console.log('聚焦到用户:', user.displayName);
-}
-
-/**
- * 切换用户光标显示
- */
-function toggleUserCursor(user: User, visible: boolean): void {
-  if (cursorsRef.value) {
-    if (visible) {
-      cursorsRef.value.showCursor(user.userId);
-    } else {
-      cursorsRef.value.hideCursor(user.userId);
-    }
-  }
-}
-
-/**
- * 切换所有光标显示
- */
-function toggleAllCursors(visible: boolean): void {
-  showAllCursors.value = visible;
-  
-  if (cursorsRef.value) {
-    collaborationState.value.onlineUsers.forEach(user => {
-      if (visible) {
-        cursorsRef.value!.showCursor(user.userId);
-      } else {
-        cursorsRef.value!.hideCursor(user.userId);
-      }
-    });
-  }
 }
 
 /**
@@ -1426,221 +1509,89 @@ function refreshUsers(): void {
   console.log('刷新用户列表');
 }
 
-/**
- * 处理光标点击
- */
-function handleCursorClick(userId: string): void {
-  const user = collaborationState.value.onlineUsers.find(u => u.userId === userId);
-  if (user) {
-    console.log(`点击了 ${user.displayName} 的光标`);
-  }
-}
+// 暴露给父组件调用：从画布读取最新状态并触发保存
+defineExpose({ triggerSave: saveGraph });
+
 </script>
 <style scoped>
+/* height:100% 而非 100vh，避免与父级 flex:1 容器叠加导致溢出 */
 .workflow-editor {
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f5f5f5;
+  background: #f0f2f5;
   position: relative;
 }
 
-.connection-indicator {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.connection-indicator.connected {
-  background: rgba(40, 167, 69, 0.1);
-  color: #28a745;
-}
-
-.connection-indicator.connecting {
-  background: rgba(255, 193, 7, 0.1);
-  color: #ffc107;
-}
-
-.connection-indicator.disconnected {
-  background: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
-}
-
-.connection-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.connection-indicator.connecting .connection-dot {
-  animation: pulse 1.5s infinite;
-}
-
+/* ─── 工具栏 ─────────────────────────────────── */
 .toolbar {
   background: #fff;
-  padding: 1rem;
-  border-bottom: 1px solid #ddd;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e4e7ed;
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 10;
-  gap: 1rem;
+  gap: 8px;
+  flex-shrink: 0;
   flex-wrap: wrap;
-}
-
-.toolbar h3 {
-  margin: 0;
-  color: #333;
-  font-size: 16px;
 }
 
 .toolbar-left {
   display: flex;
   align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .toolbar-right {
   display: flex;
-  gap: 0.5rem;
+  gap: 6px;
   align-items: center;
   flex-wrap: wrap;
 }
 
-.toolbar-users {
+/* 协同连接状态标签中的圆点 */
+.conn-tag {
   display: flex;
   align-items: center;
+  gap: 5px;
 }
 
-.online-users-inline {
-  min-width: 260px;
-  max-width: 320px;
-}
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  transition: all 0.2s;
+.conn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
 }
 
-.btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
 
-.btn-primary {
-  background: #667eea;
-  color: white;
-}
-.btn-secondary {
-  background: #2196f3;
-  color: white;
-}
-.btn-warning {
-  background: #ff9800;
-  color: white;
-}
-.btn-success {
-  background: #4caf50;
-  color: white;
-}
-.btn-info {
-  background: #00bcd4;
-  color: white;
-}
-.btn-danger {
-  background: #f44336;
-  color: white;
-}
-
-.icon {
-  font-size: 1.1rem;
-}
-
-.divider {
-  width: 1px;
-  height: 24px;
-  background: #ddd;
-  margin: 0 0.5rem;
-}
-
+/* ─── 画布容器 ───────────────────────────────── */
 .editor-container {
   flex: 1;
   display: flex;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
 
 .logicflow-container {
   width: 100%;
   height: 100%;
   background: #fafafa;
-  border-radius: 4px;
   overflow: hidden;
-  /* 添加边界框以便调试 */
-  border: 2px solid #e0e0e0;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
   position: relative;
 }
 
-/* 添加调试信息显示 */
-.logicflow-container::before {
-  content: 'LogicFlow画布区域';
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  padding: 4px 8px;
-  background: rgba(102, 126, 234, 0.1);
-  border: 1px solid rgba(102, 126, 234, 0.3);
-  border-radius: 4px;
-  font-size: 12px;
-  color: #667eea;
-  z-index: 1;
-  pointer-events: none;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-/* 响应式设计 */
+/* ─── 响应式 ─────────────────────────────────── */
 @media (max-width: 768px) {
   .toolbar {
-    padding: 0.75rem;
-    flex-direction: column;
-    gap: 0.5rem;
+    padding: 6px 12px;
   }
-  
-  .toolbar h3 {
-    font-size: 14px;
-  }
-  
+
+  .toolbar-left,
   .toolbar-right {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  
-  .btn {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.8rem;
-  }
-  
-  .toolbar-users {
-    width: 100%;
     justify-content: center;
   }
 }

@@ -15,11 +15,11 @@ import { CardNodeModel, CardNodeView } from '../nodes/NodeCardRenderer';
 // EDITOR-01: CardNodeModel 高度与展开逻辑
 // ─────────────────────────────────────────────
 describe('CardNodeModel', () => {
-  it('collapsed height=80 (EDITOR-01)', () => {
-    // CardNodeModel 尚未实现，expect 将失败（RED）
+  it('custom nodes force expanded height (EDITOR-01)', () => {
     expect(CardNodeModel).toBeDefined();
     const model = new (CardNodeModel as any)({ properties: { expanded: false } });
-    expect(model.height).toBe(80);
+    expect(model.properties.expanded).toBe(true);
+    expect(model.height).toBeGreaterThanOrEqual(420);
   });
 
   it('expanded height>=300 (EDITOR-01)', () => {
@@ -96,6 +96,23 @@ describe('CardNodeView', () => {
     expect(rows.length).toBeGreaterThan(0);
   });
 
+  it('renders node status tag from backend status enum', () => {
+    expect(CardNodeView).toBeDefined();
+
+    const rootEl = document.createElement('div');
+    const mockModel = {
+      properties: { expanded: true, requirement: '', prompt: null, attributes: [], status: 'review_needed' },
+      id: 'test-node-status',
+    };
+
+    const view = new (CardNodeView as any)({ model: mockModel });
+    view.setHtml(rootEl);
+
+    const statusTag = rootEl.querySelector('.node-card__status-tag');
+    expect(statusTag).not.toBeNull();
+    expect((statusTag as HTMLElement).textContent).toContain('待复核');
+  });
+
   it('add row button click increments model.properties.attributes length (EDITOR-04)', () => {
     expect(CardNodeView).toBeDefined();
 
@@ -120,29 +137,23 @@ describe('CardNodeView', () => {
     expect(mockModel.properties.attributes.length).toBe(initialLength + 1);
   });
 
-  // ─────────────────────────────────────────────
-  // EDITOR-01: collapsed 状态显示截断文本
-  // ─────────────────────────────────────────────
-  it('shows truncated requirement in summary when collapsed (EDITOR-01)', () => {
+  it('always renders edit form even if incoming data is collapsed (EDITOR-01)', () => {
     expect(CardNodeView).toBeDefined();
 
-    const longReq = '这是一段超过五十个字符的需求描述文字，用于测试截断显示功能是否正确工作，确保不超过限制。';
     const rootEl = document.createElement('div');
     const mockModel = {
-      properties: { expanded: false, requirement: longReq, prompt: null, attributes: [] },
+      properties: { expanded: false, requirement: '需求描述', prompt: null, attributes: [] },
       id: 'test-node-5',
     };
 
     const view = new (CardNodeView as any)({ model: mockModel });
     view.setHtml(rootEl);
 
-    const summary = rootEl.querySelector('.node-card__summary');
-    expect(summary).not.toBeNull();
-    const text = (summary as HTMLElement).textContent || '';
-    expect(text.length).toBeLessThanOrEqual(53); // 50 chars + "..."
+    const form = rootEl.querySelector('.node-card__edit-form');
+    expect(form).not.toBeNull();
   });
 
-  it('shows 未填写 when requirement is empty (EDITOR-01)', () => {
+  it('does not render collapsed summary anymore (EDITOR-01)', () => {
     expect(CardNodeView).toBeDefined();
 
     const rootEl = document.createElement('div');
@@ -155,7 +166,6 @@ describe('CardNodeView', () => {
     view.setHtml(rootEl);
 
     const summary = rootEl.querySelector('.node-card__summary');
-    expect(summary).not.toBeNull();
-    expect((summary as HTMLElement).textContent).toContain('未填写');
+    expect(summary).toBeNull();
   });
 });

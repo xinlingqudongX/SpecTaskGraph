@@ -5,7 +5,8 @@ export type MessageType =
   | 'user-join'           // 用户加入
   | 'user-leave'          // 用户离开
   | 'cursor-move'         // 光标移动
-  | 'node-operation'      // 节点操作
+  | 'node-operation'      // 节点增删改
+  | 'node-select'         // 节点选中/取消选中（感知其他用户选中状态）
   | 'user-info-update'    // 用户信息更新
   | 'heartbeat'           // 心跳
   | 'connection-established' // 连接建立
@@ -13,6 +14,7 @@ export type MessageType =
   | 'room-left'           // 房间离开
   | 'online-users'        // 在线用户列表
   | 'heartbeat-ack'       // 心跳确认
+  | 'canvas-snapshot'     // 服务端推送给新用户的画布快照
   | 'error';              // 错误消息
 
 /**
@@ -64,7 +66,8 @@ export type CollaborationOperationType =
   | 'node-update'         // 更新节点
   | 'node-delete'         // 删除节点
   | 'edge-create'         // 创建边
-  | 'edge-delete';        // 删除边
+  | 'edge-delete'         // 删除边
+  | 'canvas-sync';        // 全量画布同步（LWW 策略）
 
 /**
  * 协同操作信息
@@ -86,6 +89,10 @@ export interface Room {
   users: Map<string, ConnectedUser>;    // 房间内的用户
   createdAt: Date;                      // 房间创建时间
   lastActivity: Date;                   // 最后活动时间
+  // 服务端维护的最新画布快照（JSON 字符串），用于新用户加入时同步
+  canvasSnapshot?: string;
+  // 单调递增的操作序号，用于客户端去重
+  seq: number;
 }
 
 /**

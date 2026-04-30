@@ -16,7 +16,7 @@ describe('NodeMetadata Schema Contract', () => {
     it('WorkflowGraph nodes do not have a status field that could overwrite backend status', () => {
       // TaskNode.status is used for workflow-level node type (start/task/decision) state
       // but WorkflowManagerService saves WorkflowGraph to local JSON
-      // AI execution status (pending/completed/failed/review_needed) lives only in NodeMetadataEntity
+      // AI execution status (pending/in_progress/completed/failed/review_needed) lives only in NodeMetadataEntity
       const node: TaskNode = {
         nodeId: 'text_abc123',
         type: 'task',
@@ -118,10 +118,22 @@ describe('NodeMetadata Schema Contract', () => {
     it('NodeStatus type excludes running and skipped values', () => {
       // This test documents the locked NodeStatus contract (DATA-04)
       // If NodeStatus type is ever changed to include running/skipped, TypeScript will catch it
-      type ValidStatus = 'pending' | 'completed' | 'failed' | 'review_needed';
-      const statuses: ValidStatus[] = ['pending', 'completed', 'failed', 'review_needed'];
-      expect(statuses).toHaveLength(4);
+      type ValidStatus =
+        | 'pending'
+        | 'in_progress'
+        | 'completed'
+        | 'failed'
+        | 'review_needed';
+      const statuses: ValidStatus[] = [
+        'pending',
+        'in_progress',
+        'completed',
+        'failed',
+        'review_needed',
+      ];
+      expect(statuses).toHaveLength(5);
       expect(statuses).toContain('review_needed');
+      expect(statuses).toContain('in_progress');
       expect(statuses).not.toContain('running');
       expect(statuses).not.toContain('skipped');
     });

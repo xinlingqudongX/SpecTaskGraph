@@ -286,15 +286,19 @@ export class WebSocketManager {
 
   /**
    * 处理接收到的消息
+   * NestJS WS 网关发送的格式为 { event: string, data: any }
+   * 同时兼容旧格式 { type: string, ... }
    */
   private handleMessage(data: any): void {
     try {
+      // NestJS 格式：{ event, data } —— data 内部包含 userId/projectId 等字段
+      const payload = data.data ?? data;
       const message: WebSocketMessage = {
-        type: data.type || 'unknown',
-        projectId: data.projectId || '',
-        userId: data.userId || '',
-        timestamp: data.timestamp || new Date().toISOString(),
-        data: data.data || data,
+        type: data.event || data.type || 'unknown',
+        projectId: payload.projectId || data.projectId || '',
+        userId: payload.userId || data.userId || '',
+        timestamp: payload.timestamp || data.timestamp || new Date().toISOString(),
+        data: payload,
       };
 
       // 通知所有消息监听器

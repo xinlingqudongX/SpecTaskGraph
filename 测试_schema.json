@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "project": {
+    "name": "测试",
+    "exportTime": "2026-03-08T07:41:41.231Z",
+    "totalNodes": 4,
+    "totalEdges": 3,
+    "description": "工作流自动化与项目拆解图谱"
+  },
+  "pipelines": [
+    {
+      "pipelineStartId": "node_1",
+      "featureName": "TEXT 管理员功能",
+      "description": "管理员的增删改查"
+    },
+    {
+      "pipelineStartId": "node_3",
+      "featureName": "TEXT 用户功能",
+      "description": "用户的增删改查"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "node_root",
+      "title": "测试",
+      "type": "root",
+      "description": "",
+      "fileResource": "",
+      "dependsOn": [],
+      "nextNodes": [
+        "node_1",
+        "node_3"
+      ],
+      "metadata": {
+        "x": 519,
+        "y": 70,
+        "width": 180,
+        "height": 70
+      }
+    },
+    {
+      "id": "node_1",
+      "title": "TEXT 管理员功能",
+      "type": "text",
+      "description": "管理员的增删改查",
+      "fileResource": "",
+      "dependsOn": [
+        "node_root"
+      ],
+      "nextNodes": [
+        "node_2"
+      ],
+      "metadata": {
+        "x": 227.66567974392552,
+        "y": 468.45450238059493,
+        "width": 280,
+        "height": 210
+      }
+    },
+    {
+      "id": "node_2",
+      "title": "TEXT 初始化管理员",
+      "type": "text",
+      "description": "在项目启动时检查管理员是否存在，不存在则初始化管理员账号",
+      "fileResource": "",
+      "dependsOn": [
+        "node_1"
+      ],
+      "nextNodes": [],
+      "metadata": {
+        "x": 223.64100283746905,
+        "y": 729.9303690990229,
+        "width": 280,
+        "height": 210
+      }
+    },
+    {
+      "id": "node_3",
+      "title": "TEXT 用户功能",
+      "type": "text",
+      "description": "用户的增删改查",
+      "fileResource": "",
+      "dependsOn": [
+        "node_root"
+      ],
+      "nextNodes": [],
+      "metadata": {
+        "x": 584.7631846651435,
+        "y": 467.4022622983211,
+        "width": 280,
+        "height": 210
+      }
+    }
+  ]
+}

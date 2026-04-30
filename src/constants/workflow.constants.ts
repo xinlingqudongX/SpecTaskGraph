@@ -57,17 +57,6 @@ export const NODE_TYPES = {
 } as const;
 
 /**
- * 节点状态常量
- */
-export const NODE_STATUS = {
-  PENDING: 'pending',
-  RUNNING: 'running',
-  COMPLETED: 'completed',
-  FAILED: 'failed',
-  SKIPPED: 'skipped'
-} as const;
-
-/**
  * 资产角色常量
  */
 export const ASSET_ROLES = {

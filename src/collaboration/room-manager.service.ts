@@ -21,6 +21,7 @@ export class RoomManagerService {
         users: new Map(),
         createdAt: new Date(),
         lastActivity: new Date(),
+        seq: 0,
       };
       
       this.rooms.set(projectId, room);

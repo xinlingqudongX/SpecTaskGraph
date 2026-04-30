@@ -6,6 +6,24 @@
  */
 
 /**
+ * 向后端 PATCH /api/v1/node/:id/status 更新节点状态。
+ * in_progress 由后端写入，前端只允许设置其余四种状态。
+ */
+export async function updateNodeStatus(
+  nodeId: string,
+  status: 'pending' | 'completed' | 'failed' | 'review_needed',
+): Promise<void> {
+  const res = await fetch(`/api/v1/node/${nodeId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+}
+
+/**
  * 向后端 PATCH /api/v1/node/:id 发送节点字段更新请求。
  *
  * @param nodeId 节点 ID
@@ -18,6 +36,7 @@ export async function patchNode(
   payload: {
     requirement?: string;
     prompt?: string;
+    agentRoleId?: string | null;
     attributes?: Array<{ key: string; value: string }>;
   },
 ): Promise<unknown> {

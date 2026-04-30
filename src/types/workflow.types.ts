@@ -23,6 +23,7 @@ export type NodeType =
  */
 export type NodeStatus =
   | 'pending' // 待执行
+  | 'in_progress' // 执行中
   | 'completed' // 已完成
   | 'failed' // 失败
   | 'review_needed'; // 需要审核

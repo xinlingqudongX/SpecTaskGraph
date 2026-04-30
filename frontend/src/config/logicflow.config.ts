@@ -4,11 +4,18 @@
  */
 
 import LogicFlow from '@logicflow/core';
-import { HtmlNode, HtmlNodeModel } from '@logicflow/core';
+import { HtmlNode, HtmlNodeModel, PolylineEdge, PolylineEdgeModel } from '@logicflow/core';
 import { Control, Menu, SelectionSelect, Snapshot } from '@logicflow/extension';
+import { Dagre } from '@logicflow/layout';
 import { logicflowLogger } from '../utils/logger';
 import { CardNodeView } from '../nodes/NodeCardRenderer';
-import { COLLAPSED_HEIGHT, EXPANDED_HEIGHT_BASE } from '../nodes/NodeCardModel';
+import {
+  COLLAPSED_HEIGHT,
+  EXPANDED_HEIGHT_BASE,
+  ATTRIBUTE_ROW_HEIGHT,
+  ATTRIBUTE_SECTION_EXTRA_HEIGHT,
+  EXECUTION_HEADER_HEIGHT,
+} from '../nodes/NodeCardModel';
 
 /**
  * LogicFlow-compatible wrappers that extend the proper base classes.
@@ -21,20 +28,127 @@ class LFCardNodeView extends HtmlNode {
     view.setHtml(rootEl);
   }
   shouldUpdate(): boolean {
+    const view = new CardNodeView({ model: this.props.model as any });
+    return view.shouldUpdate();
+  }
+}
+
+class LFRootNodeModel extends HtmlNodeModel {
+  setAttributes(): void {
+    this.width = 180;
+    this.height = 70;
+    if (this.text) {
+      // 节点名称已在 HTML 内部渲染，不需要 LogicFlow 的浮动文字标签
+      this.text.value = '';
+      this.text.draggable = false;
+      this.text.editable = false;
+    }
+  }
+}
+
+class LFRootNodeView extends HtmlNode {
+  setHtml(rootEl: SVGForeignObjectElement): void {
+    rootEl.innerHTML = '';
+    const model = this.props.model as any;
+    const title: string = model.properties?.title || model.text?.value || '开始';
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = [
+      'width:100%', 'height:100%', 'box-sizing:border-box',
+      'background:linear-gradient(160deg,#1f5d98 0%,#0e3f6f 100%)',
+      'border-radius:8px', 'border:2px solid #0b3c66',
+      'display:flex', 'flex-direction:column',
+      'align-items:center', 'justify-content:flex-start',
+      'overflow:hidden',
+    ].join(';');
+
+    const tag = document.createElement('div');
+    tag.style.cssText = [
+      'width:100%', 'padding:4px 8px 2px', 'box-sizing:border-box',
+      'font-size:10px', 'font-weight:700', 'letter-spacing:1px',
+      'color:rgba(255,255,255,0.6)', 'text-transform:uppercase',
+      'border-bottom:1px solid rgba(255,255,255,0.15)',
+      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+    ].join(';');
+    tag.textContent = 'START';
+
+    const label = document.createElement('div');
+    label.style.cssText = [
+      'flex:1', 'width:100%', 'display:flex', 'align-items:center',
+      'justify-content:center', 'padding:0 10px', 'box-sizing:border-box',
+      'color:#fff', 'font-weight:700', 'font-size:14px',
+      'white-space:nowrap', 'overflow:hidden', 'text-overflow:ellipsis',
+      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+    ].join(';');
+    label.textContent = title;
+
+    wrap.appendChild(tag);
+    wrap.appendChild(label);
+    rootEl.appendChild(wrap);
+  }
+
+  shouldUpdate(): boolean {
     return true;
   }
 }
 
 class LFCardNodeModel extends HtmlNodeModel {
+  initNodeData(data: Record<string, any>): void {
+    super.initNodeData(data);
+    if (this.text) {
+      this.text.draggable = false;
+      this.text.editable = false;
+    }
+  }
+
+  getDefaultAnchor(): Array<{ x: number; y: number; id: string; name: string }> {
+    const { x, y, width, height, id } = this;
+    // 卡片节点显式提供锚点，避免首次加载带边数据时 HtmlNodeModel 缺少 anchors 导致边渲染报错
+    return [
+      { x, y: y - height / 2, id: `${id}_top`, name: 'top' },
+      { x: x + width / 2, y, id: `${id}_right`, name: 'right' },
+      { x, y: y + height / 2, id: `${id}_bottom`, name: 'bottom' },
+      { x: x - width / 2, y, id: `${id}_left`, name: 'left' },
+    ];
+  }
+
   setAttributes(): void {
     this.width = 280;
-    const props = this.properties as Record<string, any>;
-    if (props.expanded) {
-      const attrCount = Array.isArray(props.attributes) ? props.attributes.length : 0;
-      this.height = EXPANDED_HEIGHT_BASE + attrCount * 36;
-    } else {
-      this.height = COLLAPSED_HEIGHT;
+    // 节点名称已在卡片 HTML 内部渲染，不需要 LogicFlow 的浮动文字标签
+    if (this.text) {
+      this.text.value = '';
+      this.text.draggable = false;
+      this.text.editable = false;
     }
+    const props = this.properties as Record<string, any>;
+    props.expanded = true;
+    // 自定义节点使用卡片表单承载编辑，不走 LogicFlow 默认文本输入框
+    this.menu = [
+      {
+        text: '添加节点',
+        callback: (node: { id: string }) => {
+          window.dispatchEvent(new CustomEvent('lf:add-child-node', { detail: { nodeId: node.id } }));
+        },
+      },
+      {
+        text: '编辑文本',
+        callback: (node: { id: string }) => {
+          window.dispatchEvent(new CustomEvent('lf:edit-node-content', { detail: { nodeId: node.id } }));
+        },
+      },
+      {
+        text: '删除',
+        callback: (node: { id: string }) => {
+          this.graphModel.deleteNode(node.id);
+        },
+      },
+    ];
+    const attrCount = Array.isArray(props.attributes) ? props.attributes.length : 0;
+    const baseHeight = EXPANDED_HEIGHT_BASE + ATTRIBUTE_SECTION_EXTRA_HEIGHT + attrCount * ATTRIBUTE_ROW_HEIGHT;
+    // banner 内嵌于卡片顶部，需在原有内容高度之上额外预留 38px，避免挤压表单区域
+    this.height = props.status === 'in_progress'
+      ? baseHeight + EXECUTION_HEADER_HEIGHT
+      : baseHeight;
   }
 }
 
@@ -96,14 +210,16 @@ export const logicFlowConfig = {
     },
   },
   
-  // 边的配置
-  edgeType: 'polyline',
+  // 边的配置（使用支持样式切换的自定义折线边）
+  edgeType: 'styled-polyline',
   
   // 是否开启历史记录
   history: true,
   
-  // 是否开启局部渲染
-  partial: true,
+  // HtmlNode 使用 foreignObject 挂载真实 DOM。
+  // 节点较多时局部渲染会让节点反复卸载/挂载，叠加 shouldUpdate 判定容易出现“命中区还在但内容没挂上”的假透明。
+  // 这里关闭 partial，优先保证所有节点都稳定渲染。
+  partial: false,
   
   // 动画配置
   animation: true,
@@ -132,7 +248,7 @@ export const logicFlowConfig = {
   snapline: true,
   
   // 插件配置
-  plugins: [Control, Menu, SelectionSelect, Snapshot],
+  plugins: [Control, Menu, SelectionSelect, Snapshot, Dagre],
 };
 
 // 主题配置
@@ -305,6 +421,9 @@ export function createLogicFlowInstance(container: HTMLElement): LogicFlow {
       plugins: logicFlowConfig.plugins.map(p => p.name || p.constructor?.name || 'Unknown')
     });
     
+    // 注册自定义边类型（必须在 render 之前）
+    registerStyledEdge(lf);
+
     // 注册卡片节点类型（必须在 render 之前）
     logicflowLogger.info('开始注册卡片节点类型...');
     registerCardNodes(lf);
@@ -351,12 +470,77 @@ export function applyTheme(lf: LogicFlow): void {
   });
 }
 
+// strokeStyle → SVG strokeDasharray 映射
+const STROKE_DASH_MAP: Record<string, string> = {
+  dashed: '8 4',
+  dotted: '2 4',
+};
+
+// 可自定义样式的折线边 Model，根据 properties.strokeStyle 返回对应虚线样式
+class StyledPolylineEdgeModel extends PolylineEdgeModel {
+  getEdgeStyle() {
+    const style = super.getEdgeStyle();
+    const dash = STROKE_DASH_MAP[this.properties.strokeStyle as string];
+    if (dash) style.strokeDasharray = dash;
+    return style;
+  }
+}
+
 /**
- * 注册卡片节点类型（text/image/audio/video/file/property）到 LogicFlow 实例。
- * RootNode 保留原有 RectNode 注册，不在此处理。
- * @param lf LogicFlow 实例
+ * 注册自定义边并配置右键菜单。
+ * 必须在 LogicFlow 实例创建后、render 之前调用。
+ */
+export function registerStyledEdge(lf: LogicFlow): void {
+  lf.register({ type: 'styled-polyline', view: PolylineEdge, model: StyledPolylineEdgeModel });
+
+  // 边样式右键菜单：切换实线/虚线/点线，并触发保存同步
+  const dispatchEdgeChange = () => {
+    window.dispatchEvent(new CustomEvent('lf:edge-style-changed'));
+  };
+
+  try {
+    (lf.extension as any).menu?.addMenuConfig({
+      edgeMenu: [
+        {
+          text: '实线',
+          callback: (edge: { id: string }) => {
+            lf.setProperties(edge.id, { strokeStyle: 'solid' });
+            dispatchEdgeChange();
+          },
+        },
+        {
+          text: '虚线',
+          callback: (edge: { id: string }) => {
+            lf.setProperties(edge.id, { strokeStyle: 'dashed' });
+            dispatchEdgeChange();
+          },
+        },
+        {
+          text: '点线',
+          callback: (edge: { id: string }) => {
+            lf.setProperties(edge.id, { strokeStyle: 'dotted' });
+            dispatchEdgeChange();
+          },
+        },
+        {
+          text: '删除',
+          callback: (edge: { id: string }) => {
+            lf.deleteEdge(edge.id);
+          },
+        },
+      ],
+    });
+  } catch {
+    // 部分版本 Menu 插件挂载时机不同，容错处理
+  }
+}
+
+/**
+ * 注册项目使用的全部自定义节点类型到 LogicFlow 实例。
+ * 根节点使用 RootNode，其余业务节点统一使用小写类型。
  */
 export function registerCardNodes(lf: LogicFlow): void {
+  lf.register({ type: 'RootNode', view: LFRootNodeView, model: LFRootNodeModel });
   const CARD_NODE_TYPES = ['text', 'image', 'audio', 'video', 'file', 'property'];
   for (const type of CARD_NODE_TYPES) {
     lf.register({ type, view: LFCardNodeView, model: LFCardNodeModel });

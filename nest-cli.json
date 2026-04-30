@@ -5,6 +5,9 @@
   "compilerOptions": {
     "deleteOutDir": true,
     "watchAssets": true,
-    "assets": ["/public/**/*"]
+    "assets": ["/public/**/*",{
+        "include": "**/*.{yaml,yml}",
+        "outDir": "dist"
+    }]
   }
 }

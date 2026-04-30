@@ -7,7 +7,6 @@ export const createProjectSchema = z.object({
   description: z.string().optional(),
   basePath: z.string().optional(),
   techStack: z.record(z.unknown()).optional(),
-  workflowJson: z.record(z.unknown()).optional(),
 });
 
 export class CreateProjectDto extends createZodDto(createProjectSchema) {}

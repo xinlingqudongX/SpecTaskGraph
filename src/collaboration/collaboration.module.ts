@@ -24,10 +24,9 @@ import { HeartbeatService } from './heartbeat.service';
     MessageValidatorService,
     HeartbeatService,
   ],
-  controllers: [
-    CollaborationController,
-  ],
+  controllers: [CollaborationController],
   exports: [
+    CollaborationGateway,
     RoomManagerService,
     UserManagerService,
     MessageHandlerService,

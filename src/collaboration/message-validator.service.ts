@@ -78,14 +78,14 @@ export class MessageValidatorService {
     // 检查坐标
     if (typeof position.x !== 'number' || isNaN(position.x)) {
       errors.push('X坐标必须是有效数字');
-    } else if (position.x < 0 || position.x > 50000) {
-      errors.push('X坐标超出有效范围 (0-50000)');
+    } else if (position.x < 0 || position.x > 60000) {
+      errors.push('X坐标超出有效范围 (0-60000)');
     }
 
     if (typeof position.y !== 'number' || isNaN(position.y)) {
       errors.push('Y坐标必须是有效数字');
-    } else if (position.y < 0 || position.y > 50000) {
-      errors.push('Y坐标超出有效范围 (0-50000)');
+    } else if (position.y < 0 || position.y > 60000) {
+      errors.push('Y坐标超出有效范围 (0-60000)');
     }
 
     return {

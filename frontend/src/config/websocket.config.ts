@@ -8,7 +8,7 @@
 export function getWebSocketUrl(): string {
   // 在开发环境中，使用环境变量或默认值
   if (import.meta.env.DEV) {
-    return import.meta.env.VITE_WS_URL || 'ws://localhost:5000/ws';
+    return import.meta.env.VITE_WS_URL || 'ws://localhost:9000/ws';
   }
   
   // 在生产环境中，使用当前域名和端口

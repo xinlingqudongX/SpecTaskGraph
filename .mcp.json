@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "ai-spec-devlop":{
+      "url": "http://localhost:9000/api/v1/mcp",
+      "type": "streamable-http",
+      "headers":{
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream"
+      },
+      "disabled": false,
+      "autoApprove": ["*"],
+      "disabledTools":[]
+    }
+  }
+}

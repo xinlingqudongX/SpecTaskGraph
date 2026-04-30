@@ -23,6 +23,7 @@ export const NodeTypeSchema = z.enum([
  */
 export const NodeStatusSchema = z.enum([
   'pending',
+  'in_progress',
   'completed',
   'failed',
   'review_needed',

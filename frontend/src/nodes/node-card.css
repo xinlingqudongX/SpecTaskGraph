@@ -1,127 +1,517 @@
-/* node-card.css — 节点卡片基础样式 */
+/* node-card.css — 节点卡片基础样式，与 EP 主色 #409EFF 对齐 */
 
 .node-card {
-  border: 2px solid #2e73b2;
+  border: 1.5px solid #409eff;
   border-radius: 8px;
   background: #fff;
-  font-family: inherit;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 13px;
-  overflow: visible;
+  overflow: hidden;
   width: 100%;
+  height: 100%;
   box-sizing: border-box;
   cursor: default;
   user-select: none;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
+  transition: box-shadow 0.2s, border-color 0.2s;
+  display: flex;
+  flex-direction: column;
 }
 
-.node-card__status-border {
-  height: 4px;
-  background: #ccc; /* Phase 5 会更新颜色 */
-}
-
-.node-card__header {
-  padding: 8px 10px 4px;
-  font-weight: 600;
-  color: #1f5d98;
+/* ─── 执行者 banner（内嵌于卡片顶部，替代旧的外层套壳）─── */
+.node-card__executor-banner {
+  height: 38px;
+  padding: 0 10px 0 12px;
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.node-card__collapse-btn {
-  margin-left: auto;
-  background: none;
-  border: 1px solid #aac4e0;
-  border-radius: 3px;
-  color: #5a8bbf;
-  font-size: 11px;
-  padding: 1px 6px;
-  cursor: pointer;
-  line-height: 1.4;
-}
-.node-card__collapse-btn:hover {
-  background: #e8f0fa;
-}
-
-.node-card__summary {
-  padding: 4px 10px 8px;
-  color: #555;
+  flex-shrink: 0;
+  /* 兜底主题蓝；实际 bg 由 JS 按执行者名称哈希动态注入 inline style */
+  background: linear-gradient(90deg, #3a8ee6 0%, #409eff 100%);
+  color: #fff;
   font-size: 12px;
-  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.node-card__executor-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.65);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+}
+
+.node-card__executor-banner-agent {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.node-card__edit-form {
-  padding: 8px 10px;
-  border-top: 1px solid #e8e8e8;
+.node-card__executor-banner-toggle {
+  flex-shrink: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.node-card__executor-banner-toggle:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* ─── 执行计划侧边板（绝对定位于 rootEl 右侧）─── */
+.node-card-execution-shell__panel {
+  width: 184px;
+  position: absolute;
+  top: 0;
+  left: calc(100% + 8px);
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(138, 180, 248, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 8px 18px rgba(96, 98, 102, 0.12);
+  padding: 10px 10px 12px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
+.node-card-execution-shell__panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #606266;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.node-card-execution-shell__panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-size: 12px;
+  color: #303133;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.node-card:hover {
+  border-color: #66b1ff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.18);
+}
+
+.node-card--status-pending {
+  border-color: #409eff;
+}
+
+/* in_progress 时用渐变边框动效替代固定色，视觉上表达"正在执行" */
+.node-card--status-in-progress {
+  border-color: transparent;
+  background-image:
+    linear-gradient(#fff, #fff),
+    linear-gradient(120deg, #8ab4f8 0%, #c3dafe 30%, #93c5fd 60%, #8ab4f8 100%);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-size: 100% 100%, 240% 240%;
+  animation: node-card-in-progress-glow 3.6s linear infinite;
+}
+
+@keyframes node-card-in-progress-glow {
+  0%   { background-position: 0 0, 0% 50%; }
+  100% { background-position: 0 0, 200% 50%; }
+}
+
+.node-card--status-completed {
+  border-color: #67c23a;
+}
+
+.node-card--status-failed {
+  border-color: #f56c6c;
+}
+
+.node-card--status-review-needed {
+  border-color: #e6a23c;
+}
+
+/* 顶部状态色条（Phase 5 按实际状态着色） */
+.node-card__status-border {
+  height: 3px;
+  background: #409eff;
+  border-radius: 8px 8px 0 0;
+  flex-shrink: 0;
+}
+
+
+.node-card--status-completed .node-card__status-border {
+  background: #67c23a;
+}
+
+.node-card--status-failed .node-card__status-border {
+  background: #f56c6c;
+}
+
+.node-card--status-review-needed .node-card__status-border {
+  background: #e6a23c;
+}
+
+/* ─── 卡片头部 ───────────────────────────────── */
+.node-card__header {
+  padding: 10px 12px 8px;
+  font-weight: 600;
+  color: #2b6cb0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid #e8f0fe;
+  flex-shrink: 0;
+}
+
+.node-card__type {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #409eff;
+  background: #ecf5ff;
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.node-card__status-tag {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.node-card__status-tag--pending {
+  color: #409eff;
+  background: #ecf5ff;
+}
+
+.node-card__status-tag--in-progress {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* 旋转加载圈 */
+.node-card__status-tag--in-progress::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(64, 158, 255, 0.25);
+  border-top-color: #409eff;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: node-card-spin 0.7s linear infinite;
+}
+
+@keyframes node-card-spin {
+  to { transform: rotate(360deg); }
+}
+
+.node-card__status-tag--completed {
+  color: #67c23a;
+  background: #f0f9eb;
+}
+
+.node-card__status-tag--failed {
+  color: #f56c6c;
+  background: #fef0f0;
+}
+
+.node-card__status-tag--review-needed {
+  color: #e6a23c;
+  background: #fdf6ec;
+}
+
+.node-card__collapse-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #d9ecff;
+  border-radius: 4px;
+  color: #409eff;
+  font-size: 11px;
+  padding: 1px 8px;
+  cursor: pointer;
+  line-height: 1.5;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.node-card__collapse-btn:hover {
+  background: #ecf5ff;
+  border-color: #b3d8ff;
+}
+
+/* ─── 折叠摘要 ───────────────────────────────── */
+.node-card__summary {
+  padding: 8px 12px 10px;
+  color: #606266;
+  font-size: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+/* ─── 可滚动 body 容器（header 以下整体滚动，防止字段增加时挤压）─── */
+.node-card__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── 编辑表单 ───────────────────────────────── */
+.node-card__edit-form {
+  padding: 12px;
+  border-top: 1px solid #e8f0fe;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.node-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
 .node-card__edit-form label {
   font-size: 11px;
-  color: #888;
+  color: #909399;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 0;
 }
 
 .node-card__edit-form textarea {
   width: 100%;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 6px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  padding: 8px 10px;
   font-size: 12px;
-  resize: none;
+  resize: vertical;
   font-family: inherit;
   box-sizing: border-box;
   user-select: text;
   cursor: text;
+  color: #303133;
+  line-height: 1.5;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  background: #fff;
 }
 
+.node-card__field--requirement textarea {
+  min-height: 108px;
+}
+
+.node-card__field--prompt textarea {
+  min-height: 148px;
+}
+
+.node-card__edit-form textarea:focus {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.15);
+}
+
+/* ─── 属性表格 ───────────────────────────────── */
 .node-card__attributes {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+  table-layout: fixed;
+}
+
+.node-card__attributes-wrap {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.node-card__attributes th {
+  background: #f5f7fa;
+  color: #909399;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .node-card__attributes th,
 .node-card__attributes td {
-  border: 1px solid #eee;
-  padding: 4px 6px;
+  border: 1px solid #ebeef5;
+  padding: 6px 8px;
+  vertical-align: middle;
 }
 
 .node-card__attributes input {
-  border: none;
+  border: 1px solid transparent;
   outline: none;
   width: 100%;
   font-size: 12px;
-}
-
-.node-card__attr-add-btn {
-  background: #f0f7ff;
-  border: 1px dashed #2e73b2;
+  color: #303133;
+  background: #fff;
+  box-sizing: border-box;
+  padding: 6px 8px;
   border-radius: 4px;
-  cursor: pointer;
-  padding: 4px 8px;
-  font-size: 12px;
-  color: #2e73b2;
-  width: 100%;
-  margin-top: 4px;
 }
 
+.node-card__attributes input:focus {
+  background: #f0f7ff;
+  border-color: #b3d8ff;
+}
+
+/* ─── Agent 角色下拉 ──────────────────────────── */
+.node-card__role-select {
+  width: 100%;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #303133;
+  background: #fff;
+  box-sizing: border-box;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.node-card__role-select:focus {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.15);
+}
+
+/* ─── 添加属性按钮 ────────────────────────────── */
+.node-card__add-attribute,
+.node-card__delete-attribute {
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.node-card__add-attribute {
+  background: #f0f7ff;
+  border: 1px dashed #409eff;
+  padding: 7px 10px;
+  color: #409eff;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.node-card__add-attribute:hover {
+  background: #ecf5ff;
+}
+
+.node-card__delete-attribute {
+  width: 100%;
+  border: 1px solid #fbc4c4;
+  background: #fff5f5;
+  color: #d03050;
+  padding: 6px 8px;
+}
+
+.node-card__delete-attribute:hover {
+  background: #fde2e2;
+  border-color: #f89898;
+}
+
+/* ─── 保存状态标签 ────────────────────────────── */
 .node-card__save-status {
   font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 3px;
+  padding: 2px 7px;
+  border-radius: 10px;
 }
 
 .node-card__save-status--success {
-  color: #4caf50;
-  background: #f0fff4;
+  color: #67c23a;
+  background: #f0f9eb;
 }
 
 .node-card__save-status--error {
-  color: #f44336;
-  background: #fff5f5;
+  color: #f56c6c;
+  background: #fef0f0;
+}
+
+/* ─── 状态 tag 可点击态 ──────────────────────── */
+.node-card__status-tag--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.node-card__status-tag--clickable:hover {
+  filter: brightness(0.93);
+}
+
+.node-card__status-chevron {
+  margin-left: 3px;
+  font-size: 9px;
+  opacity: 0.7;
+  vertical-align: middle;
+}
+
+/* ─── 状态选择 popover ───────────────────────── */
+.lf-status-dropdown {
+  position: absolute;
+  z-index: 9999;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  min-width: 120px;
+}
+
+.lf-status-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  color: #303133;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.lf-status-dropdown__item:hover {
+  background: #f5f7fa;
+}
+
+.lf-status-dropdown__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
